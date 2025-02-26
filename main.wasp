@@ -355,7 +355,7 @@ page MenuEditorPage {
   component: import MenuEditorPage from "@src/menu-creator/MenuEditorPage"
 }
 
-route PublicMenuRoute { path: "/m/:publicUrl", to: PublicMenuPage }
+route PublicMenuRoute { path: "/menu/:publicUrl", to: PublicMenuPage }
 page PublicMenuPage {
   component: import PublicMenuPage from "@src/menu-creator/PublicMenuPage"
 }

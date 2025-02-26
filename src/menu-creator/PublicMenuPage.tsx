@@ -4,6 +4,7 @@ import { useQuery } from 'wasp/client/operations';
 import { getPublicMenu } from 'wasp/client/operations';
 import { Menu, MenuSection, MenuItem, assertMenu } from './types';
 
+// Standalone public menu page without any app components
 const PublicMenuPage = () => {
   const params = useParams<{ publicUrl: string }>();
   const publicUrl = params.publicUrl || '';
@@ -12,92 +13,222 @@ const PublicMenuPage = () => {
   const menu = menuData ? assertMenu(menuData) : null;
   
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   useEffect(() => {
     if (menu && menu.sections && menu.sections.length > 0) {
       setActiveSection(menu.sections[0].id);
     }
+    
+    // Set document title to menu name
+    if (menu) {
+      document.title = `${menu.name} | Menu`;
+    }
+
+    // Remove any app-specific styles or elements that might be inherited
+    document.body.classList.add('public-menu-page');
+    
+    return () => {
+      document.body.classList.remove('public-menu-page');
+    };
   }, [menu]);
   
-  if (isLoading) return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div></div>;
+  if (isLoading) return (
+    <div className="flex justify-center items-center h-screen bg-white">
+      <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-amber-500"></div>
+    </div>
+  );
   
-  if (error) return <div className="text-center p-8 text-red-500">Error loading menu: {error.message}</div>;
+  if (error) return (
+    <div className="flex justify-center items-center h-screen bg-white">
+      <div className="text-center p-8 text-red-500 max-w-md">
+        <svg className="w-16 h-16 mx-auto text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h2 className="text-2xl font-bold mb-2">Error Loading Menu</h2>
+        <p>{error.message}</p>
+      </div>
+    </div>
+  );
   
-  if (!menu) return <div className="text-center p-8">Menu not found</div>;
+  if (!menu) return (
+    <div className="flex justify-center items-center h-screen bg-white">
+      <div className="text-center p-8 max-w-md">
+        <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h2 className="text-2xl font-bold mb-2">Menu Not Found</h2>
+        <p className="text-gray-600">The menu you're looking for doesn't exist or has been removed.</p>
+      </div>
+    </div>
+  );
   
   const activeItems = menu.sections?.find(section => section.id === activeSection)?.items || [];
+  const activeSection_data = menu.sections?.find(section => section.id === activeSection);
   
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-          {/* Menu Header */}
-          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white">
-            <h1 className="text-3xl font-bold">{menu.name}</h1>
+    <div className="min-h-screen bg-white font-sans">
+      {/* Add a style tag to ensure this page is completely standalone */}
+      <style>
+        {`
+          body {
+            margin: 0;
+            padding: 0;
+            background: white;
+          }
+          .public-menu-page {
+            isolation: isolate;
+          }
+        `}
+      </style>
+      
+      {/* Mobile Menu Toggle */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-20 bg-white shadow-md">
+        <div className="flex justify-between items-center p-4">
+          <h1 className="text-xl font-bold truncate">{menu.name}</h1>
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-md bg-amber-500 text-white"
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+          >
+            {isMobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+      
+      {/* Mobile Menu Drawer */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-10 lg:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setIsMobileMenuOpen(false)}></div>
+          <div className="absolute top-16 left-0 right-0 bottom-0 bg-white overflow-y-auto">
+            <div className="p-4">
+              <h2 className="text-lg font-semibold mb-4 text-gray-800">Menu Sections</h2>
+              <ul className="space-y-2">
+                {menu.sections?.map((section) => (
+                  <li key={section.id}>
+                    <button
+                      onClick={() => {
+                        setActiveSection(section.id);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-lg ${
+                        activeSection === section.id
+                          ? 'bg-amber-100 text-amber-800 font-medium'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {section.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="max-w-7xl mx-auto pt-16 lg:pt-8 lg:flex">
+        {/* Desktop Header & Sidebar */}
+        <div className="hidden lg:block lg:w-1/4 h-screen sticky top-0 overflow-y-auto p-6 border-r border-gray-200">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">{menu.name}</h1>
             {menu.description && (
-              <p className="mt-2 text-blue-100">{menu.description}</p>
+              <p className="mt-2 text-gray-600">{menu.description}</p>
             )}
           </div>
           
-          {/* Menu Content */}
-          <div className="flex flex-col md:flex-row">
-            {/* Sections Sidebar */}
-            <div className="md:w-1/3 border-r border-gray-200">
-              <nav className="p-4">
-                <h2 className="text-lg font-semibold mb-4 text-gray-700">Menu Sections</h2>
-                <ul>
-                  {menu.sections?.map((section) => (
-                    <li key={section.id}>
-                      <button
-                        onClick={() => setActiveSection(section.id)}
-                        className={`w-full text-left px-4 py-2 rounded-md mb-1 ${
-                          activeSection === section.id
-                            ? 'bg-blue-100 text-blue-700 font-medium'
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        {section.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            </div>
-            
-            {/* Items Content */}
-            <div className="md:w-2/3 p-4">
-              {activeSection ? (
-                <>
-                  <h2 className="text-xl font-semibold mb-4 text-gray-800">
-                    {menu.sections?.find(section => section.id === activeSection)?.name}
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    {menu.sections?.find(section => section.id === activeSection)?.description}
+          <h2 className="text-lg font-semibold mb-4 text-gray-800">Menu Sections</h2>
+          <ul className="space-y-2">
+            {menu.sections?.map((section) => (
+              <li key={section.id}>
+                <button
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                    activeSection === section.id
+                      ? 'bg-amber-100 text-amber-800 font-medium shadow-sm'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {section.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        
+        {/* Content */}
+        <div className="lg:w-3/4 p-4 lg:p-8">
+          {/* Mobile-only header for section name */}
+          <div className="lg:hidden mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {activeSection_data?.name || "Select a section"}
+            </h2>
+          </div>
+          
+          {activeSection ? (
+            <div>
+              <div className="hidden lg:block mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {activeSection_data?.name}
+                </h2>
+                {activeSection_data?.description && (
+                  <p className="text-gray-600">
+                    {activeSection_data.description}
                   </p>
-                  
-                  <div className="space-y-4">
-                    {activeItems.length > 0 ? (
-                      activeItems.map((item) => (
-                        <div key={item.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex justify-between">
-                            <h3 className="text-lg font-medium text-gray-800">{item.name}</h3>
-                            <span className="text-lg font-semibold text-blue-600">${item.price.toFixed(2)}</span>
-                          </div>
-                          {item.description && (
-                            <p className="mt-1 text-gray-600">{item.description}</p>
-                          )}
+                )}
+              </div>
+              
+              {activeItems.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {activeItems.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow border border-gray-100"
+                    >
+                      <div className="p-5">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-xl font-semibold text-gray-900">{item.name}</h3>
+                          <span className="text-lg font-bold text-amber-600">${item.price.toFixed(2)}</span>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-center text-gray-500 py-8">No items in this section</p>
-                    )}
-                  </div>
-                </>
+                        {item.description && (
+                          <p className="text-gray-600 mt-2">{item.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <p className="text-center text-gray-500 py-8">Select a section to view items</p>
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <p className="text-gray-500 text-lg">No items in this section</p>
+                </div>
               )}
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              </svg>
+              <p className="text-gray-500 text-lg">Select a section to view items</p>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Simple Footer */}
+      <div className="mt-12 py-6 bg-gray-50 border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
+          <p>© {new Date().getFullYear()} {menu.name}</p>
         </div>
       </div>
     </div>

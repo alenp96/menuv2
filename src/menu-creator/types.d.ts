@@ -101,88 +101,106 @@ declare module 'react-beautiful-dnd' {
   }
 }
 
-// Declaration for wasp modules
-declare module 'wasp/client/operations' {
-  // Define Menu types directly in the module declaration
-  export interface Menu {
-    id: string;
-    name: string;
-    description: string;
-    userId: string;
-    publicUrl: string | null;
-    isPublished: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    sections: MenuSection[];
-  }
+// Type declarations for Menu Creator entities
+export type Menu = {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  name: string;
+  description: string | null;
+  isPublished: boolean;
+  publicUrl: string;
+  userId: string;
+  sections: MenuSection[];
+};
 
-  export interface MenuSection {
-    id: string;
-    name: string;
-    description: string;
-    menuId: string;
-    position: number;
-    createdAt: Date;
-    updatedAt: Date;
-    items: MenuItem[];
-  }
+export type MenuSection = {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  name: string;
+  description: string | null;
+  position: number;
+  menuId: string;
+  items: MenuItem[];
+};
 
-  export interface MenuItem {
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    sectionId: string;
-    position: number;
-    createdAt: Date;
-    updatedAt: Date;
-  }
+export type MenuItem = {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  name: string;
+  description: string | null;
+  price: number;
+  position: number;
+  sectionId: string;
+};
 
-  export function useQuery<T, P>(
-    query: (args: P) => Promise<T>,
-    args: P
-  ): {
-    data: T | undefined;
-    isLoading: boolean;
-    error: Error | undefined;
-    refetch: () => void;
-  };
-
-  export function useAction<T, P>(
-    action: (args: P) => Promise<T>
-  ): (args: P) => Promise<T>;
-
-  // Menu queries
-  export const getMenuById: (args: { menuId: string }) => Promise<Menu>;
-  export const getPublicMenu: (args: { publicUrl: string }) => Promise<Menu>;
-  export const getMenusByUser: () => Promise<Menu[]>;
-
-  // Menu actions
-  export const createMenu: (args: { name: string; description: string }) => Promise<Menu>;
-  export const updateMenu: (args: { menuId: string; name: string; description: string }) => Promise<Menu>;
-  export const deleteMenu: (args: { menuId: string }) => Promise<void>;
-  export const publishMenu: (args: { menuId: string }) => Promise<Menu>;
-
-  // Section actions
-  export const createMenuSection: (args: { menuId: string; name: string; description: string; position: number }) => Promise<MenuSection>;
-  export const updateMenuSection: (args: { sectionId: string; name: string; description: string }) => Promise<MenuSection>;
-  export const deleteMenuSection: (args: { sectionId: string }) => Promise<void>;
-
-  // Item actions
-  export const createMenuItem: (args: { sectionId: string; name: string; description: string; price: number; position: number }) => Promise<MenuItem>;
-  export const updateMenuItem: (args: { itemId: string; name: string; description: string; price: number }) => Promise<MenuItem>;
-  export const deleteMenuItem: (args: { itemId: string }) => Promise<void>;
+// Add a type assertion function to help with TypeScript errors
+export function assertMenu(menu: any): Menu {
+  return menu as Menu;
 }
 
-declare module 'wasp/client/auth' {
-  export interface User {
-    id: string;
-    username: string;
-    email: string;
-  }
+export function assertMenuSection(section: any): MenuSection {
+  return section as MenuSection;
+}
 
-  export function useAuth(): {
-    data: User | null;
+export function assertMenuItem(item: any): MenuItem {
+  return item as MenuItem;
+}
+
+// Operation types
+export type GetMenusByUser = (args: any, context: any) => Promise<Menu[]>;
+export type GetMenuById = (args: any, context: any) => Promise<Menu>;
+export type GetPublicMenu = (args: any, context: any) => Promise<Menu>;
+export type CreateMenu = (args: any, context: any) => Promise<Menu>;
+export type UpdateMenu = (args: any, context: any) => Promise<Menu>;
+export type DeleteMenu = (args: any, context: any) => Promise<void>;
+export type PublishMenu = (args: any, context: any) => Promise<Menu>;
+export type CreateMenuSection = (args: any, context: any) => Promise<MenuSection>;
+export type UpdateMenuSection = (args: any, context: any) => Promise<MenuSection>;
+export type DeleteMenuSection = (args: any, context: any) => Promise<void>;
+export type CreateMenuItem = (args: any, context: any) => Promise<MenuItem>;
+export type UpdateMenuItem = (args: any, context: any) => Promise<MenuItem>;
+export type DeleteMenuItem = (args: any, context: any) => Promise<void>;
+
+// Declare module for Wasp operations
+declare module 'wasp/client/operations' {
+  // Menu queries
+  export const getMenusByUser: (args: { userId: string }) => Promise<Menu[]>;
+  export const getMenuById: (args: { menuId: string }) => Promise<Menu>;
+  export const getPublicMenu: (args: { publicUrl: string }) => Promise<Menu>;
+  
+  // Menu actions
+  export const createMenu: (args: { name: string, description?: string }) => Promise<Menu>;
+  export const updateMenu: (args: { menuId: string, name: string, description: string, publicUrl: string }) => Promise<Menu>;
+  export const deleteMenu: (args: { menuId: string }) => Promise<void>;
+  export const publishMenu: (args: { menuId: string }) => Promise<Menu>;
+  
+  // Section actions
+  export const createMenuSection: (args: { menuId: string, name: string, description: string, position: number }) => Promise<MenuSection>;
+  export const updateMenuSection: (args: { sectionId: string, name: string, description: string }) => Promise<MenuSection>;
+  export const deleteMenuSection: (args: { sectionId: string }) => Promise<void>;
+  
+  // Item actions
+  export const createMenuItem: (args: { sectionId: string, name: string, description: string, price: number, position: number }) => Promise<MenuItem>;
+  export const updateMenuItem: (args: { itemId: string, name: string, description: string, price: number }) => Promise<MenuItem>;
+  export const deleteMenuItem: (args: { itemId: string }) => Promise<void>;
+  
+  // Hooks
+  export const useQuery: any;
+  export const useAction: any;
+}
+
+// Declare module for Wasp auth
+declare module 'wasp/client/auth' {
+  export const useAuth: () => {
+    data: {
+      id: string;
+      email: string;
+      username: string;
+      isAdmin: boolean;
+    } | null;
     isLoading: boolean;
     error: Error | null;
   };

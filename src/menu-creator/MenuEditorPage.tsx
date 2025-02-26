@@ -27,6 +27,7 @@ const MenuEditorPage = () => {
   
   const [menuName, setMenuName] = useState('');
   const [menuDescription, setMenuDescription] = useState('');
+  const [menuPublicUrl, setMenuPublicUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   
@@ -62,6 +63,7 @@ const MenuEditorPage = () => {
     if (menu) {
       setMenuName(menu.name);
       setMenuDescription(menu.description || '');
+      setMenuPublicUrl(menu.publicUrl || '');
     }
   }, [menu]);
   
@@ -96,11 +98,22 @@ const MenuEditorPage = () => {
   const handleSaveMenu = async () => {
     setIsSaving(true);
     try {
+      // Generate a URL-friendly slug if the publicUrl is empty
+      let publicUrl = menuPublicUrl.trim();
+      if (!publicUrl) {
+        publicUrl = menuName.toLowerCase()
+          .replace(/[^\w\s-]/g, '') // Remove special characters
+          .replace(/\s+/g, '-') // Replace spaces with hyphens
+          .replace(/-+/g, '-'); // Replace multiple hyphens with a single one
+      }
+      
       await updateMenuFn({
         menuId,
         name: menuName,
-        description: menuDescription || ''
+        description: menuDescription || '',
+        publicUrl
       });
+      setMenuPublicUrl(publicUrl);
       refetch();
     } catch (error) {
       console.error('Failed to update menu:', error);
@@ -295,6 +308,52 @@ const MenuEditorPage = () => {
               rows={3}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
+          </div>
+          <div>
+            <label htmlFor="menuPublicUrl" className="block text-sm font-medium text-gray-700">
+              Permalink
+            </label>
+            <div className="mt-1 flex rounded-md shadow-sm">
+              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                /menu/
+              </span>
+              <input
+                type="text"
+                id="menuPublicUrl"
+                value={menuPublicUrl}
+                onChange={(e) => setMenuPublicUrl(e.target.value)}
+                placeholder={menuName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}
+                className="flex-1 block w-full rounded-none rounded-r-md border border-gray-300 py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <p className="mt-1 text-sm text-gray-500">
+              Customize the URL for your public menu. Leave blank to use the menu name.
+            </p>
+            {menu.isPublished && (
+              <div className="mt-2 flex items-center space-x-2">
+                <span className="text-sm text-gray-500">Public URL:</span>
+                <a 
+                  href={`/menu/${menu.publicUrl}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-indigo-600 hover:text-indigo-800"
+                >
+                  {window.location.origin}/menu/{menu.publicUrl}
+                </a>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/menu/${menu.publicUrl}`);
+                    alert('URL copied to clipboard!');
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600"
+                  title="Copy URL"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex justify-end">
             <button

@@ -100,7 +100,7 @@ export const createMenu: CreateMenu<{ name: string; description?: string }, Menu
   });
 };
 
-export const updateMenu: UpdateMenu<{ menuId: string; name: string; description?: string }, Menu> = async ({ menuId, name, description }, context) => {
+export const updateMenu: UpdateMenu<{ menuId: string; name: string; description?: string; publicUrl: string }, Menu> = async ({ menuId, name, description, publicUrl }, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to update a menu');
   }
@@ -117,9 +117,20 @@ export const updateMenu: UpdateMenu<{ menuId: string; name: string; description?
     throw new HttpError(403, 'You do not have permission to update this menu');
   }
 
+  // Check if the publicUrl is already in use by another menu
+  if (publicUrl !== menu.publicUrl) {
+    const existingMenu = await context.entities.Menu.findUnique({
+      where: { publicUrl }
+    });
+
+    if (existingMenu && existingMenu.id !== menuId) {
+      throw new HttpError(400, 'This URL is already in use. Please choose a different one.');
+    }
+  }
+
   return context.entities.Menu.update({
     where: { id: menuId },
-    data: { name, description }
+    data: { name, description, publicUrl }
   });
 };
 
