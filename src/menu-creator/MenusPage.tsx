@@ -159,7 +159,7 @@ const MenusPage = () => {
                   {menu.isPublished && (
                     <div className="mt-4">
                       <a
-                        href={`/m/${menu.publicUrl}`}
+                        href={`/menu/${menu.publicUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:text-primary-dark underline"

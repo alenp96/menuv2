@@ -20,11 +20,17 @@ export default function App() {
   const navigationItems = isLandingPage ? landingPageNavigationItems : appNavigationItems;
 
   const shouldDisplayAppNavBar = useMemo(() => {
-    return location.pathname !== routes.LoginRoute.build() && location.pathname !== routes.SignupRoute.build();
+    return location.pathname !== routes.LoginRoute.build() && 
+           location.pathname !== routes.SignupRoute.build() && 
+           !location.pathname.startsWith('/menu/');
   }, [location]);
 
   const isAdminDashboard = useMemo(() => {
     return location.pathname.startsWith('/admin');
+  }, [location]);
+
+  const isPublicMenuPage = useMemo(() => {
+    return location.pathname.startsWith('/menu/');
   }, [location]);
 
   useEffect(() => {
@@ -40,7 +46,7 @@ export default function App() {
   return (
     <>
       <div className='min-h-screen dark:text-white dark:bg-boxdark-2'>
-        {isAdminDashboard ? (
+        {isAdminDashboard || isPublicMenuPage ? (
           <Outlet />
         ) : (
           <>
@@ -51,7 +57,7 @@ export default function App() {
           </>
         )}
       </div>
-      <CookieConsentBanner />
+      {!isPublicMenuPage && <CookieConsentBanner />}
     </>
   );
 }
