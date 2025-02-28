@@ -30,6 +30,7 @@ export type MenuItem = {
   description: string | null;
   price: number;
   position: number;
+  imageUrl: string | null;
   sectionId: string;
 };
 
@@ -59,4 +60,5 @@ export type UpdateMenuSection<Args, Result> = (args: Args, context: any) => Prom
 export type DeleteMenuSection<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type CreateMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type UpdateMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
-export type DeleteMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>; 
+export type DeleteMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
+export type GetMenuItemImageUploadUrl<Args, Result> = (args: Args, context: any) => Promise<Result>; 

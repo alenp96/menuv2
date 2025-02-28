@@ -426,4 +426,9 @@ action deleteMenuItem {
   fn: import { deleteMenuItem } from "@src/menu-creator/operations",
   entities: [User, Menu, MenuSection, MenuItem]
 }
+
+query getMenuItemImageUploadUrl {
+  fn: import { getMenuItemImageUploadUrl } from "@src/menu-creator/operations",
+  entities: [User, Menu, MenuSection, MenuItem]
+}
 //#endregion

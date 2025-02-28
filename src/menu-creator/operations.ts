@@ -13,9 +13,11 @@ import type {
   DeleteMenuSection, 
   CreateMenuItem, 
   UpdateMenuItem, 
-  DeleteMenuItem 
+  DeleteMenuItem,
+  GetMenuItemImageUploadUrl
 } from './types';
 import { nanoid } from 'nanoid';
+import { getMenuItemImageUploadURL } from './menuItemImageUtils';
 
 // Queries
 export const getMenusByUser: GetMenusByUser<void, Menu[]> = async (args, context) => {
@@ -276,7 +278,7 @@ export const deleteMenuSection: DeleteMenuSection<{ sectionId: string }, void> =
   });
 };
 
-export const createMenuItem: CreateMenuItem<{ sectionId: string; name: string; description?: string; price?: number; position: number }, MenuItem> = async ({ sectionId, name, description, price, position }, context) => {
+export const createMenuItem: CreateMenuItem<{ sectionId: string; name: string; description?: string; price?: number; position: number; imageUrl?: string }, MenuItem> = async ({ sectionId, name, description, price, position, imageUrl }, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to create a menu item');
   }
@@ -300,12 +302,13 @@ export const createMenuItem: CreateMenuItem<{ sectionId: string; name: string; d
       description,
       price: price || 0,
       position,
+      imageUrl,
       section: { connect: { id: sectionId } }
     }
   });
 };
 
-export const updateMenuItem: UpdateMenuItem<{ itemId: string; name?: string; description?: string; price?: number; position?: number }, MenuItem> = async ({ itemId, name, description, price, position }, context) => {
+export const updateMenuItem: UpdateMenuItem<{ itemId: string; name?: string; description?: string; price?: number; position?: number; imageUrl?: string }, MenuItem> = async ({ itemId, name, description, price, position, imageUrl }, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to update a menu item');
   }
@@ -329,7 +332,8 @@ export const updateMenuItem: UpdateMenuItem<{ itemId: string; name?: string; des
       ...(name && { name }),
       ...(description !== undefined && { description }),
       ...(price !== undefined && { price }),
-      ...(position !== undefined && { position })
+      ...(position !== undefined && { position }),
+      ...(imageUrl !== undefined && { imageUrl })
     }
   });
 };
@@ -355,4 +359,46 @@ export const deleteMenuItem: DeleteMenuItem<{ itemId: string }, void> = async ({
   await context.entities.MenuItem.delete({
     where: { id: itemId }
   });
+};
+
+export const getMenuItemImageUploadUrl: GetMenuItemImageUploadUrl<{ itemId: string; fileName: string; fileType: string }, { uploadUrl: string; publicUrl: string }> = async ({ itemId, fileName, fileType }, context) => {
+  if (!context.user) {
+    throw new HttpError(401, 'You must be logged in to upload an image');
+  }
+
+  // Check if this is a temporary ID (for new items)
+  const isTemporaryId = itemId.startsWith('new-');
+  
+  let menuId;
+  
+  if (isTemporaryId) {
+    // For temporary IDs, we'll just use the user ID for the path
+    menuId = 'temp';
+  } else {
+    // For existing items, verify permissions
+    const item = await context.entities.MenuItem.findUnique({
+      where: { id: itemId },
+      include: { section: { include: { menu: true } } }
+    });
+
+    if (!item) {
+      throw new HttpError(404, 'Item not found');
+    }
+
+    if (item.section.menu.userId !== context.user.id) {
+      throw new HttpError(403, 'You do not have permission to upload an image for this item');
+    }
+    
+    menuId = item.section.menu.id;
+  }
+
+  const { uploadUrl, publicUrl } = await getMenuItemImageUploadURL({
+    fileName,
+    fileType,
+    userId: context.user.id,
+    menuId,
+    itemId
+  });
+
+  return { uploadUrl, publicUrl };
 }; 

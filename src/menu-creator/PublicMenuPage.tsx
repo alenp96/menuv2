@@ -33,6 +33,20 @@ const PublicMenuPage = () => {
     };
   }, [menu]);
   
+  const activeItems = menu?.sections?.find(section => section.id === activeSection)?.items || [];
+  const activeSection_data = menu?.sections?.find(section => section.id === activeSection);
+  
+  // Add useEffect to log image URLs
+  useEffect(() => {
+    if (activeItems) {
+      activeItems.forEach(item => {
+        if (item.imageUrl) {
+          console.log('Menu item has image URL:', item.imageUrl);
+        }
+      });
+    }
+  }, [activeItems]);
+  
   if (isLoading) return (
     <div className="flex justify-center items-center h-screen bg-white">
       <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-amber-500"></div>
@@ -62,9 +76,6 @@ const PublicMenuPage = () => {
       </div>
     </div>
   );
-  
-  const activeItems = menu.sections?.find(section => section.id === activeSection)?.items || [];
-  const activeSection_data = menu.sections?.find(section => section.id === activeSection);
   
   return (
     <div className="min-h-screen bg-white font-sans">
@@ -189,17 +200,50 @@ const PublicMenuPage = () => {
               {activeItems.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2">
                   {activeItems.map((item) => (
-                    <div 
-                      key={item.id} 
-                      className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow border border-gray-100"
-                    >
-                      <div className="p-5">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="text-xl font-semibold text-gray-900">{item.name}</h3>
-                          <span className="text-lg font-bold text-amber-600">${item.price.toFixed(2)}</span>
+                    <div key={item.id} className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100">
+                      {item.imageUrl && (
+                        <div className="w-full h-48 overflow-hidden">
+                          <img 
+                            src={item.imageUrl} 
+                            alt={item.name} 
+                            className="w-full h-full object-cover"
+                            onLoad={() => console.log('Image loaded successfully:', item.imageUrl)}
+                            onError={(e) => {
+                              console.error('Image failed to load:', item.imageUrl);
+                              // Try with a different URL format
+                              const imgElement = e.currentTarget;
+                              const originalSrc = imgElement.src;
+                              
+                              // If this is the first error, try changing the URL format
+                              if (originalSrc === item.imageUrl) {
+                                console.log('Trying alternative URL format...');
+                                // Try a different URL format (without the region in the domain)
+                                const altUrl = item.imageUrl.replace(
+                                  /https:\/\/([^.]+)\.s3\.([^.]+)\.amazonaws\.com\/(.*)/,
+                                  'https://$1.s3.amazonaws.com/$3'
+                                );
+                                if (altUrl !== originalSrc) {
+                                  console.log('Using alternative URL:', altUrl);
+                                  imgElement.src = altUrl;
+                                  return;
+                                }
+                              }
+                              
+                              // If we've already tried an alternative or no alternative is available, use a placeholder
+                              imgElement.src = 'https://via.placeholder.com/300x200?text=Image+Not+Available';
+                              imgElement.style.objectFit = 'contain';
+                              console.log('Using placeholder image');
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <div className="flex justify-between items-start">
+                          <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
+                          <span className="text-amber-600 font-bold">${item.price.toFixed(2)}</span>
                         </div>
                         {item.description && (
-                          <p className="text-gray-600 mt-2">{item.description}</p>
+                          <p className="mt-2 text-gray-600">{item.description}</p>
                         )}
                       </div>
                     </div>
@@ -208,7 +252,7 @@ const PublicMenuPage = () => {
               ) : (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                   <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                   </svg>
                   <p className="text-gray-500 text-lg">No items in this section</p>
                 </div>

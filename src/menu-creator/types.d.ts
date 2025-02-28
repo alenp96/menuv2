@@ -133,6 +133,7 @@ export type MenuItem = {
   description: string | null;
   price: number;
   position: number;
+  imageUrl: string | null;
   sectionId: string;
 };
 
@@ -163,6 +164,7 @@ export type DeleteMenuSection = (args: any, context: any) => Promise<void>;
 export type CreateMenuItem = (args: any, context: any) => Promise<MenuItem>;
 export type UpdateMenuItem = (args: any, context: any) => Promise<MenuItem>;
 export type DeleteMenuItem = (args: any, context: any) => Promise<void>;
+export type GetMenuItemImageUploadUrl = (args: any, context: any) => Promise<{ uploadUrl: string, publicUrl: string }>;
 
 // Declare module for Wasp operations
 declare module 'wasp/client/operations' {
@@ -184,8 +186,9 @@ declare module 'wasp/client/operations' {
   
   // Item actions
   export const createMenuItem: (args: { sectionId: string, name: string, description: string, price: number, position: number }) => Promise<MenuItem>;
-  export const updateMenuItem: (args: { itemId: string, name: string, description: string, price: number }) => Promise<MenuItem>;
+  export const updateMenuItem: (args: { itemId: string, name: string, description: string, price: number, imageUrl?: string }) => Promise<MenuItem>;
   export const deleteMenuItem: (args: { itemId: string }) => Promise<void>;
+  export const getMenuItemImageUploadUrl: (args: { itemId: string, fileName: string, fileType: string }) => Promise<{ uploadUrl: string, publicUrl: string }>;
   
   // Hooks
   export const useQuery: any;

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S3 Image Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .image-test {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .image-container {
+            width: 200px;
+            height: 200px;
+            border: 1px dashed #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        button {
+            margin-top: 10px;
+            padding: 5px 10px;
+        }
+        .log {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>S3 Image Loading Test</h1>
+    
+    <div class="image-test">
+        <h2>Test with Region in URL</h2>
+        <div>
+            <input type="text" id="imageUrlWithRegion" placeholder="https://bucket.s3.region.amazonaws.com/key" style="width: 100%;">
+            <div class="image-container" id="imageContainerWithRegion">
+                <span>Image will appear here</span>
+            </div>
+            <button onclick="testImageWithRegion()">Test Load</button>
+            <div class="log" id="logWithRegion"></div>
+        </div>
+    </div>
+
+    <div class="image-test">
+        <h2>Test without Region in URL</h2>
+        <div>
+            <input type="text" id="imageUrlWithoutRegion" placeholder="https://bucket.s3.amazonaws.com/key" style="width: 100%;">
+            <div class="image-container" id="imageContainerWithoutRegion">
+                <span>Image will appear here</span>
+            </div>
+            <button onclick="testImageWithoutRegion()">Test Load</button>
+            <div class="log" id="logWithoutRegion"></div>
+        </div>
+    </div>
+
+    <div class="image-test">
+        <h2>Convert URL Format</h2>
+        <div>
+            <input type="text" id="originalUrl" placeholder="Original URL" style="width: 100%;">
+            <button onclick="convertUrl()">Convert</button>
+            <input type="text" id="convertedUrl" placeholder="Converted URL" style="width: 100%;" readonly>
+        </div>
+    </div>
+
+    <script>
+        function log(id, message) {
+            const logElement = document.getElementById(id);
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function testImageWithRegion() {
+            const url = document.getElementById('imageUrlWithRegion').value;
+            if (!url) {
+                log('logWithRegion', 'Please enter a URL');
+                return;
+            }
+
+            log('logWithRegion', `Testing image: ${url}`);
+            const container = document.getElementById('imageContainerWithRegion');
+            container.innerHTML = '';
+            
+            const img = new Image();
+            img.onload = () => {
+                log('logWithRegion', 'Image loaded successfully');
+                container.appendChild(img);
+            };
+            img.onerror = () => {
+                log('logWithRegion', 'Error loading image');
+                container.innerHTML = '<span style="color: red;">Failed to load image</span>';
+            };
+            img.src = url;
+        }
+
+        function testImageWithoutRegion() {
+            const url = document.getElementById('imageUrlWithoutRegion').value;
+            if (!url) {
+                log('logWithoutRegion', 'Please enter a URL');
+                return;
+            }
+
+            log('logWithoutRegion', `Testing image: ${url}`);
+            const container = document.getElementById('imageContainerWithoutRegion');
+            container.innerHTML = '';
+            
+            const img = new Image();
+            img.onload = () => {
+                log('logWithoutRegion', 'Image loaded successfully');
+                container.appendChild(img);
+            };
+            img.onerror = () => {
+                log('logWithoutRegion', 'Error loading image');
+                container.innerHTML = '<span style="color: red;">Failed to load image</span>';
+            };
+            img.src = url;
+        }
+
+        function convertUrl() {
+            const originalUrl = document.getElementById('originalUrl').value;
+            if (!originalUrl) {
+                alert('Please enter a URL to convert');
+                return;
+            }
+
+            // Convert from region format to non-region format
+            const convertedUrl = originalUrl.replace(
+                /https:\/\/([^.]+)\.s3\.([^.]+)\.amazonaws\.com\/(.*)/,
+                'https://$1.s3.amazonaws.com/$3'
+            );
+            
+            document.getElementById('convertedUrl').value = convertedUrl;
+        }
+    </script>
+</body>
+</html> 
