@@ -15,6 +15,7 @@ export const MenuItemImageUpload: React.FC<MenuItemImageUploadProps> = ({
   onImageUploaded 
 }) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +97,39 @@ export const MenuItemImageUpload: React.FC<MenuItemImageUploadProps> = ({
     }
   };
 
+  const handleDeleteImage = async () => {
+    if (!currentImageUrl) return;
+    
+    if (!confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    setError(null);
+    
+    try {
+      console.log('Removing image for item:', itemId);
+      
+      // Update the menu item to remove the image URL
+      await updateMenuItem({ 
+        itemId, 
+        imageUrl: ''
+      });
+      
+      console.log('Image reference removed successfully');
+      
+      // Note: This doesn't actually delete the file from S3, it just removes the reference
+      // The file will remain in S3 but will no longer be associated with this menu item
+      
+      onImageUploaded();
+    } catch (err) {
+      console.error('Error removing image reference:', err);
+      setError('Failed to remove image. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="mt-2">
       <div className="flex items-center space-x-4">
@@ -136,21 +170,34 @@ export const MenuItemImageUpload: React.FC<MenuItemImageUploadProps> = ({
         )}
         
         <div className="flex-1">
-          <label 
-            htmlFor={`image-upload-${itemId}`}
-            className="cursor-pointer inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            {currentImageUrl ? 'Change Image' : 'Add Image'}
-          </label>
-          <input
-            id={`image-upload-${itemId}`}
-            type="file"
-            accept={ALLOWED_IMAGE_TYPES.join(',')}
-            className="sr-only"
-            onChange={handleFileChange}
-            disabled={isUploading}
-            ref={fileInputRef}
-          />
+          <div className="flex space-x-2">
+            <label 
+              htmlFor={`image-upload-${itemId}`}
+              className="cursor-pointer inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              {currentImageUrl ? 'Change Image' : 'Add Image'}
+            </label>
+            <input
+              id={`image-upload-${itemId}`}
+              type="file"
+              accept={ALLOWED_IMAGE_TYPES.join(',')}
+              className="sr-only"
+              onChange={handleFileChange}
+              disabled={isUploading || isDeleting}
+              ref={fileInputRef}
+            />
+            
+            {currentImageUrl && (
+              <button
+                type="button"
+                onClick={handleDeleteImage}
+                disabled={isUploading || isDeleting}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-red-700 bg-white border border-red-300 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Image'}
+              </button>
+            )}
+          </div>
           
           {isUploading && (
             <div className="mt-2">

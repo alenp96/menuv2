@@ -17,7 +17,7 @@ import type {
   GetMenuItemImageUploadUrl
 } from './types';
 import { nanoid } from 'nanoid';
-import { getMenuItemImageUploadURL } from './menuItemImageUtils';
+import { getMenuItemImageUploadURL, getMenuItemImageDownloadURL, deleteMenuItemImage } from './menuItemImageUtils';
 
 // Queries
 export const getMenusByUser: GetMenusByUser<void, Menu[]> = async (args, context) => {
