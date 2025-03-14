@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from 'wasp/client/operations';
 import { getPublicMenu } from 'wasp/client/operations';
-import { Menu, MenuSection, MenuItem, assertMenu, DietaryTag, Allergen } from './types';
+import { Menu, MenuSection, MenuItem, assertMenu, DietaryTag, Allergen, formatPrice } from './types';
 
 // Standalone public menu page without any app components
 const PublicMenuPage = () => {
@@ -233,34 +233,40 @@ const PublicMenuPage = () => {
           }
           /* Modern visible header styles */
           .visible-header {
-            background: linear-gradient(135deg, #e65c00 0%, #F59E0B 100%);
+            background: linear-gradient(135deg, rgba(230, 92, 0, 0.95) 0%, rgba(245, 158, 11, 0.85) 100%);
+            backdrop-filter: blur(10px);
             position: relative;
             overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
           }
           .header-wave {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 50px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z' fill='%23ffffff' fill-opacity='.8'/%3E%3C/svg%3E");
+            height: 40px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z' fill='%23ffffff' fill-opacity='.95'/%3E%3C/svg%3E");
             background-size: cover;
             background-repeat: no-repeat;
             z-index: 1;
           }
           .logo-placeholder {
-            width: 80px;
-            height: 80px;
-            background-color: white;
+            width: 100px;
+            height: 100px;
+            background-color: rgba(255, 255, 255, 0.9);
             border-radius: 50%;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             position: relative;
             overflow: hidden;
+            transition: transform 0.3s ease;
+          }
+          .logo-placeholder:hover {
+            transform: scale(1.05);
           }
           .logo-placeholder::after {
             content: '';
@@ -279,20 +285,22 @@ const PublicMenuPage = () => {
           .restaurant-title {
             font-family: 'Poppins', sans-serif;
             font-weight: 800;
+            letter-spacing: 0.05em;
             color: white;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.1);
             position: relative;
           }
           .restaurant-title::after {
             content: '';
             position: absolute;
             left: 50%;
-            bottom: -8px;
+            bottom: -12px;
             transform: translateX(-50%);
-            width: 50px;
-            height: 3px;
-            background-color: white;
-            border-radius: 3px;
+            width: 60px;
+            height: 4px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           }
           .item-image-container {
             transition: all 0.3s ease;
@@ -367,30 +375,20 @@ const PublicMenuPage = () => {
       
       {/* Visible Restaurant Header */}
       <header className="visible-header w-full text-white">
-        <div className="relative py-10 px-6 flex flex-col items-center justify-center min-h-[200px] md:min-h-[300px]">
-          <button 
-            onClick={() => window.history.back()} 
-            className="absolute top-4 left-4 flex items-center space-x-1 px-3 py-2 rounded-full bg-white bg-opacity-90 text-amber-600 hover:bg-opacity-100 transition-all duration-200 shadow-md"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span className="text-sm font-medium">Back</span>
-          </button>
-          
-          <div className="z-10 transform transition-all duration-300 hover:scale-[1.02]">
+        <div className="relative py-8 px-6 flex flex-col items-center justify-center min-h-[180px] md:min-h-[250px]">
+          <div className="z-10 transform transition-all duration-300">
             <div className="logo-placeholder mb-4 mx-auto">
-              <svg className="w-10 h-10 text-amber-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <svg className="w-14 h-14 text-amber-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
               </svg>
             </div>
             
-            <h1 className="restaurant-title text-center text-3xl md:text-5xl lg:text-6xl mb-4">
+            <h1 className="restaurant-title text-center text-4xl md:text-5xl lg:text-6xl mb-6">
               {menu.name}
             </h1>
             
             {menu.description && (
-              <p className="text-center text-white mt-4 max-w-md mx-auto text-base md:text-lg font-light">
+              <p className="text-center text-white mt-4 max-w-md mx-auto text-base md:text-lg font-light opacity-90">
                 {menu.description}
               </p>
             )}
@@ -399,10 +397,10 @@ const PublicMenuPage = () => {
           <div className="header-wave"></div>
           
           {/* Decorative elements */}
-          <div className="absolute top-1/3 left-10 w-8 h-8 bg-white opacity-20 rounded-full transform animate-pulse"></div>
-          <div className="absolute top-2/3 right-10 w-6 h-6 bg-white opacity-10 rounded-full transform animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute bottom-1/4 left-1/4 w-10 h-10 bg-white opacity-15 rounded-full transform animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-          <div className="absolute top-1/4 right-1/3 w-4 h-4 bg-white opacity-25 rounded-full transform animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+          <div className="absolute top-1/3 left-10 w-8 h-8 bg-white opacity-10 rounded-full transform animate-pulse"></div>
+          <div className="absolute top-2/3 right-10 w-6 h-6 bg-white opacity-5 rounded-full transform animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute bottom-1/4 left-1/4 w-10 h-10 bg-white opacity-10 rounded-full transform animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+          <div className="absolute top-1/4 right-1/3 w-4 h-4 bg-white opacity-15 rounded-full transform animate-pulse" style={{ animationDelay: '1.5s' }}></div>
         </div>
       </header>
       
@@ -609,7 +607,9 @@ const PublicMenuPage = () => {
                               )}
                             </div>
                           </div>
-                          <span className="text-amber-600 font-bold whitespace-nowrap ml-2">${item.price.toFixed(2)}</span>
+                          <span className="text-amber-600 font-bold whitespace-nowrap ml-2">
+                            {formatPrice(item.price, menu)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -659,7 +659,9 @@ const PublicMenuPage = () => {
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-2xl font-bold text-gray-900">{selectedItem.name}</h2>
-                <span className="text-amber-600 font-bold text-xl">${selectedItem.price.toFixed(2)}</span>
+                <span className="text-amber-600 font-bold text-xl">
+                  {formatPrice(selectedItem.price, menu)}
+                </span>
               </div>
               
               {selectedItem.description && (

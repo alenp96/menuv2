@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAction } from 'wasp/client/operations';
 import { updateMenuItem, deleteMenuItem } from 'wasp/client/operations';
-import { MenuItem as MenuItemType, assertMenuItem, DietaryTag, Allergen } from '../types';
+import { MenuItem as MenuItemType, Menu, assertMenuItem, DietaryTag, Allergen, formatPrice } from '../types';
 import { MenuItemImageUpload } from './MenuItemImageUpload';
 import TagSelector from './TagSelector';
 import TagDisplay from './TagDisplay';
@@ -10,10 +10,11 @@ import { PREDEFINED_ALLERGENS } from '../constants/allergens';
 
 interface MenuItemProps {
   item: MenuItemType;
+  menu: Menu;  // Add menu prop to access currency info
   onItemUpdated: () => void;
 }
 
-const MenuItem: React.FC<MenuItemProps> = ({ item, onItemUpdated }) => {
+const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(item.name);
   const [description, setDescription] = useState(item.description || '');
@@ -93,7 +94,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, onItemUpdated }) => {
             </div>
             <div>
               <label htmlFor={`editingItemPrice-${item.id}`} className="block text-xs font-medium text-gray-700">
-                Price ($)
+                Price
               </label>
               <input
                 type="number"
@@ -167,6 +168,11 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, onItemUpdated }) => {
                 src={typedItem.imageUrl} 
                 alt={typedItem.name} 
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  const imgElement = e.currentTarget;
+                  imgElement.src = 'https://via.placeholder.com/60x60?text=NA';
+                  imgElement.style.objectFit = 'contain';
+                }}
               />
             </div>
           )}
@@ -193,7 +199,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, onItemUpdated }) => {
                   />
                 )}
                 
-                <p className="text-amber-600 font-medium mt-1">${typedItem.price.toFixed(2)}</p>
+                <p className="text-amber-600 font-medium mt-1">{formatPrice(typedItem.price, menu)}</p>
               </div>
               <div className="flex space-x-2">
                 <button

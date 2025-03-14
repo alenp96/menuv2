@@ -105,12 +105,31 @@ export const createMenu: CreateMenu<{ name: string; description?: string }, Menu
       name,
       description,
       publicUrl,
+      currencyCode: 'USD',
+      currencySymbol: '$',
+      currencyPosition: 'prefix',
       user: { connect: { id: context.user.id } }
     }
   });
 };
 
-export const updateMenu: UpdateMenu<{ menuId: string; name: string; description?: string; publicUrl: string }, Menu> = async ({ menuId, name, description, publicUrl }, context) => {
+export const updateMenu: UpdateMenu<{ 
+  menuId: string; 
+  name: string; 
+  description?: string; 
+  publicUrl: string;
+  currencyCode?: string;
+  currencySymbol?: string;
+  currencyPosition?: string;
+}, Menu> = async ({ 
+  menuId, 
+  name, 
+  description, 
+  publicUrl,
+  currencyCode,
+  currencySymbol,
+  currencyPosition
+}, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to update a menu');
   }
@@ -140,7 +159,14 @@ export const updateMenu: UpdateMenu<{ menuId: string; name: string; description?
 
   return context.entities.Menu.update({
     where: { id: menuId },
-    data: { name, description, publicUrl }
+    data: { 
+      name, 
+      description, 
+      publicUrl,
+      ...(currencyCode && { currencyCode }),
+      ...(currencySymbol && { currencySymbol }),
+      ...(currencyPosition && { currencyPosition })
+    }
   });
 };
 

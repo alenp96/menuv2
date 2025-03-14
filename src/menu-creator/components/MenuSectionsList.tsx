@@ -115,6 +115,7 @@ const MenuSectionsList: React.FC<MenuSectionsListProps> = ({ menu, onSectionsUpd
                               <MenuSectionComponent
                                 key={section.id}
                                 section={section}
+                                menu={menu}
                                 onSectionUpdated={onSectionsUpdated}
                               />
                             </div>

@@ -4,10 +4,10 @@ import { useQuery, useAction } from 'wasp/client/operations';
 import { getMenuById, publishMenu } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { Menu, assertMenu } from './types';
+import { MenuDetailsForm } from './components/MenuDetailsForm';
 
 // Custom hooks and components
 import useNavigationBlocker from './hooks/useNavigationBlocker';
-import MenuDetailsForm from './components/MenuDetailsForm';
 import MenuSectionsList from './components/MenuSectionsList';
 import PreviewModal from './components/PreviewModal';
 import PublicUrl from './components/PublicUrl';

@@ -1,4 +1,20 @@
 // Type declarations for Menu Creator entities
+export type Currency = {
+  code: string;
+  symbol: string;
+  position: 'prefix' | 'suffix';
+};
+
+export const AVAILABLE_CURRENCIES: Currency[] = [
+  { code: 'USD', symbol: '$', position: 'prefix' },
+  { code: 'EUR', symbol: '€', position: 'suffix' },
+  { code: 'GBP', symbol: '£', position: 'prefix' },
+  { code: 'JPY', symbol: '¥', position: 'prefix' },
+  { code: 'CNY', symbol: '¥', position: 'prefix' },
+  { code: 'KRW', symbol: '₩', position: 'prefix' },
+  { code: 'INR', symbol: '₹', position: 'prefix' },
+];
+
 export type Menu = {
   id: string;
   createdAt: Date;
@@ -9,6 +25,9 @@ export type Menu = {
   publicUrl: string;
   userId: string;
   sections: MenuSection[];
+  currencyCode: string;
+  currencySymbol: string;
+  currencyPosition: 'prefix' | 'suffix';
 };
 
 export type MenuSection = {
@@ -76,3 +95,11 @@ export type CreateMenuItem<Args, Result> = (args: Args, context: any) => Promise
 export type UpdateMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type DeleteMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type GetMenuItemImageUploadUrl<Args, Result> = (args: Args, context: any) => Promise<Result>;
+
+// Helper function to format price according to currency
+export function formatPrice(price: number, menu: Menu): string {
+  const formattedPrice = price.toFixed(2);
+  return menu.currencyPosition === 'prefix' 
+    ? `${menu.currencySymbol}${formattedPrice}`
+    : `${formattedPrice}${menu.currencySymbol}`;
+}

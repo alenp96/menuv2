@@ -107,6 +107,9 @@ model Menu {
   isPublished Boolean       @default(false)
   publicUrl   String        @unique
   userId      String
+  currencyCode String       @default("USD")
+  currencySymbol String     @default("$")
+  currencyPosition String   @default("prefix")
   user        User          @relation(fields: [userId], references: [id])
   sections    MenuSection[]
 }
