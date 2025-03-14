@@ -18,6 +18,14 @@ const PublicMenuPage = () => {
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const modalRef = useRef<HTMLDivElement | null>(null);
   
+  // New state for search and filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDietaryTags, setSelectedDietaryTags] = useState<string[]>([]);
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>([]);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [availableDietaryTags, setAvailableDietaryTags] = useState<DietaryTag[]>([]);
+  const [availableAllergens, setAvailableAllergens] = useState<Allergen[]>([]);
+  
   useEffect(() => {
     if (menu && menu.sections && menu.sections.length > 0) {
       setActiveSection(menu.sections[0].id);
@@ -36,6 +44,36 @@ const PublicMenuPage = () => {
     };
   }, [menu]);
 
+  // Extract all available dietary tags and allergens
+  useEffect(() => {
+    if (menu && menu.sections) {
+      const dietaryTagsSet = new Set<string>();
+      const dietaryTagsMap = new Map<string, DietaryTag>();
+      const allergensSet = new Set<string>();
+      const allergensMap = new Map<string, Allergen>();
+      
+      menu.sections.forEach(section => {
+        section.items.forEach(item => {
+          if (item.dietaryTags) {
+            item.dietaryTags.forEach(tag => {
+              dietaryTagsSet.add(tag.id);
+              dietaryTagsMap.set(tag.id, tag);
+            });
+          }
+          if (item.allergens) {
+            item.allergens.forEach(allergen => {
+              allergensSet.add(allergen.id);
+              allergensMap.set(allergen.id, allergen);
+            });
+          }
+        });
+      });
+      
+      setAvailableDietaryTags(Array.from(dietaryTagsMap.values()));
+      setAvailableAllergens(Array.from(allergensMap.values()));
+    }
+  }, [menu]);
+
   // Add event listener to close modal when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -51,29 +89,91 @@ const PublicMenuPage = () => {
     } else {
       document.body.style.overflow = '';
     }
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.body.style.overflow = '';
     };
   }, [selectedItem]);
-  
+
   const handleSectionClick = (sectionId: string, index: number) => {
     setActiveSection(sectionId);
     setActiveSectionIndex(index);
-    setSelectedItem(null); // Close any selected item when changing sections
     
-    // Scroll to section on mobile
     const sectionElement = sectionRefs.current[sectionId];
     if (sectionElement) {
       sectionElement.scrollIntoView({ behavior: 'smooth' });
     }
   };
-  
+
   const openItemModal = (item: MenuItem) => {
     setSelectedItem(item);
   };
   
+  // Filter menu items based on search term and selected filters
+  const getFilteredMenuSections = () => {
+    if (!menu || !menu.sections) return [];
+    
+    return menu.sections.map(section => {
+      // Filter items by search term and dietary preferences
+      const filteredItems = section.items.filter(item => {
+        // Search filter - check if name or description contains search term
+        const matchesSearch = searchTerm === '' || 
+          item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
+        
+        // Dietary tags filter
+        const matchesDietaryTags = selectedDietaryTags.length === 0 || 
+          (item.dietaryTags && selectedDietaryTags.every(tagId => 
+            item.dietaryTags!.some(tag => tag.id === tagId)
+          ));
+        
+        // Allergens filter (exclude items that contain selected allergens)
+        const matchesAllergens = selectedAllergens.length === 0 || 
+          !item.allergens || 
+          !selectedAllergens.some(allergenId => 
+            item.allergens!.some(allergen => allergen.id === allergenId)
+          );
+        
+        return matchesSearch && matchesDietaryTags && matchesAllergens;
+      });
+      
+      return {
+        ...section,
+        items: filteredItems
+      };
+    }).filter(section => section.items.length > 0); // Only show sections with matching items
+  };
+
+  const toggleDietaryTag = (tagId: string) => {
+    setSelectedDietaryTags(prev => 
+      prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
+    );
+  };
+
+  const toggleAllergen = (allergenId: string) => {
+    setSelectedAllergens(prev => 
+      prev.includes(allergenId) ? prev.filter(id => id !== allergenId) : [...prev, allergenId]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedDietaryTags([]);
+    setSelectedAllergens([]);
+    setSearchTerm('');
+  };
+
+  const filteredSections = getFilteredMenuSections();
+  const hasActiveFilters = searchTerm !== '' || selectedDietaryTags.length > 0 || selectedAllergens.length > 0;
+  
+  // Check if we need to update active section after filtering
+  useEffect(() => {
+    if (filteredSections.length > 0 && (!activeSection || !filteredSections.some(s => s.id === activeSection))) {
+      setActiveSection(filteredSections[0].id);
+      setActiveSectionIndex(0);
+    }
+  }, [filteredSections, activeSection]);
+
   if (isLoading) return (
     <div className="flex justify-center items-center h-screen bg-gray-50">
       <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-amber-500"></div>
@@ -251,8 +351,11 @@ const PublicMenuPage = () => {
             to { opacity: 1; }
           }
           @keyframes slideUp {
-            from { transform: translateY(50px); opacity: 0; }
+            from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
+          }
+          .animate-fadeIn {
+            animation: fadeIn 0.3s ease;
           }
           @media (min-width: 1024px) {
             .menu-grid {
@@ -305,8 +408,109 @@ const PublicMenuPage = () => {
       
       {/* Menu Sections Navigation */}
       <div className="sticky top-0 z-10 bg-white shadow-md">
+        {/* Search and Filter Bar */}
+        <div className="p-3 bg-white border-b">
+          <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-between max-w-7xl mx-auto">
+            <div className="relative flex-grow md:max-w-md">
+              <input
+                type="text"
+                placeholder="Search menu items..."
+                className="w-full px-4 py-2 pr-10 text-gray-700 bg-gray-100 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={() => setIsFilterVisible(!isFilterVisible)}
+                className="flex items-center space-x-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                </svg>
+                <span>{isFilterVisible ? 'Hide Filters' : 'Filters'}</span>
+                {hasActiveFilters && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-xs font-bold text-white bg-amber-500 rounded-full">
+                    {selectedDietaryTags.length + selectedAllergens.length + (searchTerm ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+              
+              {hasActiveFilters && (
+                <button 
+                  onClick={clearFilters}
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Filter Options */}
+          {isFilterVisible && (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg animate-fadeIn max-w-7xl mx-auto">
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Dietary Preferences */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Dietary Preferences</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {availableDietaryTags.map(tag => (
+                      <button
+                        key={tag.id}
+                        onClick={() => toggleDietaryTag(tag.id)}
+                        className={`px-2 py-1 text-xs font-medium rounded-full flex items-center ${
+                          selectedDietaryTags.includes(tag.id)
+                            ? 'bg-green-500 text-white'
+                            : 'bg-green-100 text-green-800 hover:bg-green-200'
+                        }`}
+                      >
+                        {tag.icon && <span className="mr-1">{tag.icon}</span>}
+                        {tag.name}
+                      </button>
+                    ))}
+                    {availableDietaryTags.length === 0 && (
+                      <span className="text-sm text-gray-500">No dietary options available</span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Allergen Filters */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Exclude Allergens</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {availableAllergens.map(allergen => (
+                      <button
+                        key={allergen.id}
+                        onClick={() => toggleAllergen(allergen.id)}
+                        className={`px-2 py-1 text-xs font-medium rounded-full flex items-center ${
+                          selectedAllergens.includes(allergen.id)
+                            ? 'bg-red-500 text-white'
+                            : 'bg-red-100 text-red-800 hover:bg-red-200'
+                        }`}
+                      >
+                        {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
+                        {allergen.name}
+                      </button>
+                    ))}
+                    {availableAllergens.length === 0 && (
+                      <span className="text-sm text-gray-500">No allergen options available</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        
         <nav className="menu-section-nav overflow-x-auto py-2 px-4 flex space-x-2 md:space-x-4 md:justify-center">
-          {menu.sections?.map((section, index) => (
+          {filteredSections.map((section, index) => (
             <button
               key={section.id}
               onClick={() => handleSectionClick(section.id, index)}
@@ -324,99 +528,105 @@ const PublicMenuPage = () => {
       
       {/* Menu Content */}
       <main className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8">
-        {menu.sections?.map((section, sectionIndex) => (
-          <div
-            key={section.id}
-            ref={el => sectionRefs.current[section.id] = el}
-            className={`mb-12 ${activeSection === section.id ? 'block' : 'hidden md:block'}`}
-          >
-            <div className="mb-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">{section.name}</h2>
-              {section.description && (
-                <p className="mt-2 text-gray-600">{section.description}</p>
-              )}
-            </div>
-            
-            {section.items.length > 0 ? (
-              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 menu-grid">
-                {section.items.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="menu-item-card bg-white rounded-lg overflow-hidden shadow-md border border-gray-100 cursor-pointer hover:shadow-lg"
-                    onClick={() => openItemModal(item)}
-                  >
-                    <div className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start space-x-3">
-                          {/* Show thumbnail */}
-                          {item.imageUrl && (
-                            <div className="flex-shrink-0">
-                              <img 
-                                src={item.imageUrl} 
-                                alt={item.name} 
-                                className="item-thumbnail"
-                                onError={(e) => {
-                                  const imgElement = e.currentTarget;
-                                  imgElement.src = 'https://via.placeholder.com/60x60?text=NA';
-                                  imgElement.style.objectFit = 'contain';
-                                }}
-                              />
+        {filteredSections.length > 0 ? (
+          filteredSections.map((section, sectionIndex) => (
+            <div
+              key={section.id}
+              ref={el => sectionRefs.current[section.id] = el}
+              className={`mb-12 ${activeSection === section.id ? 'block' : 'hidden md:block'}`}
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">{section.name}</h2>
+                {section.description && (
+                  <p className="mt-2 text-gray-600">{section.description}</p>
+                )}
+              </div>
+              
+              {section.items.length > 0 ? (
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 menu-grid">
+                  {section.items.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="menu-item-card bg-white rounded-lg overflow-hidden shadow-md border border-gray-100 cursor-pointer hover:shadow-lg"
+                      onClick={() => openItemModal(item)}
+                    >
+                      <div className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-start space-x-3">
+                            {/* Show thumbnail */}
+                            {item.imageUrl && (
+                              <div className="flex-shrink-0">
+                                <img 
+                                  src={item.imageUrl} 
+                                  alt={item.name} 
+                                  className="item-thumbnail"
+                                  onError={(e) => {
+                                    const imgElement = e.currentTarget;
+                                    imgElement.src = 'https://via.placeholder.com/60x60?text=NA';
+                                    imgElement.style.objectFit = 'contain';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-900 hover:text-amber-600">
+                                {item.name}
+                              </h3>
+                              {item.description && (
+                                <p className="mt-2 text-gray-600 text-sm">{item.description}</p>
+                              )}
+                              
+                              {/* Display dietary tags */}
+                              {item.dietaryTags && item.dietaryTags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {item.dietaryTags.map(tag => (
+                                    <span 
+                                      key={tag.id}
+                                      className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-md flex items-center"
+                                      title={tag.name}
+                                    >
+                                      {tag.icon && <span className="mr-1">{tag.icon}</span>}
+                                      {tag.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              
+                              {/* Display allergens */}
+                              {item.allergens && item.allergens.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {item.allergens.map(allergen => (
+                                    <span 
+                                      key={allergen.id}
+                                      className="px-1.5 py-0.5 bg-red-100 text-red-800 text-xs rounded-md flex items-center"
+                                      title={allergen.name}
+                                    >
+                                      {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
+                                      {allergen.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          )}
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 hover:text-amber-600">
-                              {item.name}
-                            </h3>
-                            {item.description && (
-                              <p className="mt-2 text-gray-600 text-sm">{item.description}</p>
-                            )}
-                            
-                            {/* Display dietary tags */}
-                            {item.dietaryTags && item.dietaryTags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {item.dietaryTags.map(tag => (
-                                  <span 
-                                    key={tag.id}
-                                    className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-md flex items-center"
-                                    title={tag.name}
-                                  >
-                                    {tag.icon && <span className="mr-1">{tag.icon}</span>}
-                                    {tag.name}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            
-                            {/* Display allergens */}
-                            {item.allergens && item.allergens.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {item.allergens.map(allergen => (
-                                  <span 
-                                    key={allergen.id}
-                                    className="px-1.5 py-0.5 bg-red-100 text-red-800 text-xs rounded-md flex items-center"
-                                    title={allergen.name}
-                                  >
-                                    {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
-                                    {allergen.name}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
                           </div>
+                          <span className="text-amber-600 font-bold whitespace-nowrap ml-2">${item.price.toFixed(2)}</span>
                         </div>
-                        <span className="text-amber-600 font-bold whitespace-nowrap ml-2">${item.price.toFixed(2)}</span>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No items in this section</p>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">No items in this section</p>
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">No items found with the current filters</p>
           </div>
-        ))}
+        )}
       </main>
       
       {/* Item Modal/Popup */}
