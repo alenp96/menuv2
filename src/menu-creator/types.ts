@@ -32,6 +32,20 @@ export type MenuItem = {
   position: number;
   imageUrl: string | null;
   sectionId: string;
+  dietaryTags?: DietaryTag[];
+  allergens?: Allergen[];
+};
+
+export type DietaryTag = {
+  id: string;
+  name: string;
+  icon?: string | null;
+};
+
+export type Allergen = {
+  id: string;
+  name: string;
+  icon?: string | null;
 };
 
 // Add a type assertion function to help with TypeScript errors
@@ -61,4 +75,4 @@ export type DeleteMenuSection<Args, Result> = (args: Args, context: any) => Prom
 export type CreateMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type UpdateMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type DeleteMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
-export type GetMenuItemImageUploadUrl<Args, Result> = (args: Args, context: any) => Promise<Result>; 
+export type GetMenuItemImageUploadUrl<Args, Result> = (args: Args, context: any) => Promise<Result>;

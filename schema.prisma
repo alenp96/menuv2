@@ -133,5 +133,21 @@ model MenuItem {
   position    Int         @default(0)
   sectionId   String
   imageUrl    String?
+  dietaryTags DietaryTag[]
+  allergens   Allergen[]
   section     MenuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+}
+
+model DietaryTag {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  icon      String?    // Font awesome icon name or emoji
+  items     MenuItem[]
+}
+
+model Allergen {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  icon      String?    // Font awesome icon name or emoji
+  items     MenuItem[]
 }

@@ -368,12 +368,12 @@ query getMenusByUser {
 
 query getMenuById {
   fn: import { getMenuById } from "@src/menu-creator/operations",
-  entities: [User, Menu, MenuSection, MenuItem]
+  entities: [User, Menu, MenuSection, MenuItem, DietaryTag, Allergen]
 }
 
 query getPublicMenu {
   fn: import { getPublicMenu } from "@src/menu-creator/operations",
-  entities: [Menu, MenuSection, MenuItem]
+  entities: [Menu, MenuSection, MenuItem, DietaryTag, Allergen]
 }
 
 // Menu Creator Actions
@@ -414,16 +414,26 @@ action deleteMenuSection {
 
 action createMenuItem {
   fn: import { createMenuItem } from "@src/menu-creator/operations",
-  entities: [User, Menu, MenuSection, MenuItem]
+  entities: [User, Menu, MenuSection, MenuItem, DietaryTag, Allergen]
 }
 
 action updateMenuItem {
   fn: import { updateMenuItem } from "@src/menu-creator/operations",
-  entities: [User, Menu, MenuSection, MenuItem]
+  entities: [User, Menu, MenuSection, MenuItem, DietaryTag, Allergen]
 }
 
 action deleteMenuItem {
   fn: import { deleteMenuItem } from "@src/menu-creator/operations",
+  entities: [User, Menu, MenuSection, MenuItem, DietaryTag, Allergen]
+}
+
+action reorderMenuSections {
+  fn: import { reorderMenuSections } from "@src/menu-creator/operations",
+  entities: [User, Menu, MenuSection]
+}
+
+action reorderMenuItems {
+  fn: import { reorderMenuItems } from "@src/menu-creator/operations",
   entities: [User, Menu, MenuSection, MenuItem]
 }
 

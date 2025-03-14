@@ -4,11 +4,13 @@ import { getMenuItemImageUploadUrl } from 'wasp/client/operations';
 import { ALLOWED_IMAGE_TYPES } from '../menuItemImageUtils';
 
 type NewItemImageUploadProps = {
-  onImageUploaded: (imageUrl: string, file: File) => void;
+  onImageSelected: (imageUrl: string) => void;
+  onFileSelected: (file: File) => void;
 };
 
 export const NewItemImageUpload: React.FC<NewItemImageUploadProps> = ({ 
-  onImageUploaded
+  onImageSelected,
+  onFileSelected
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -81,9 +83,10 @@ export const NewItemImageUpload: React.FC<NewItemImageUploadProps> = ({
         console.warn('Error testing image accessibility:', testError);
       }
 
-      // Pass both the URL and file to the parent
+      // Pass the URL and file to the parent through the new callback names
       console.log('Notifying parent component with URL:', publicUrl);
-      onImageUploaded(publicUrl, file);
+      onImageSelected(publicUrl);
+      onFileSelected(file);
     } catch (err) {
       console.error('Error uploading image:', err);
       setError('Failed to upload image. Please try again.');

@@ -1,9 +1,9 @@
 import { HttpError } from 'wasp/server';
 import { type Menu, type MenuSection, type MenuItem } from 'wasp/entities';
 import type { 
-  GetMenusByUser, 
-  GetMenuById, 
+  GetMenuById,
   GetPublicMenu, 
+  GetMenusByUser, 
   CreateMenu, 
   UpdateMenu, 
   DeleteMenu, 
@@ -43,7 +43,11 @@ export const getMenuById: GetMenuById<{ menuId: string }, Menu> = async ({ menuI
         orderBy: { position: 'asc' },
         include: {
           items: {
-            orderBy: { position: 'asc' }
+            orderBy: { position: 'asc' },
+            include: {
+              dietaryTags: true,
+              allergens: true
+            }
           }
         }
       }
@@ -69,7 +73,11 @@ export const getPublicMenu: GetPublicMenu<{ publicUrl: string }, Menu> = async (
         orderBy: { position: 'asc' },
         include: {
           items: {
-            orderBy: { position: 'asc' }
+            orderBy: { position: 'asc' },
+            include: {
+              dietaryTags: true,
+              allergens: true
+            }
           }
         }
       }
@@ -278,7 +286,28 @@ export const deleteMenuSection: DeleteMenuSection<{ sectionId: string }, void> =
   });
 };
 
-export const createMenuItem: CreateMenuItem<{ sectionId: string; name: string; description?: string; price?: number; position: number; imageUrl?: string }, MenuItem> = async ({ sectionId, name, description, price, position, imageUrl }, context) => {
+export const createMenuItem: CreateMenuItem<
+  { 
+    sectionId: string; 
+    name: string; 
+    description?: string; 
+    price?: number; 
+    position: number; 
+    imageUrl?: string;
+    dietaryTags?: { id: string; name: string; icon?: string | null }[];
+    allergens?: { id: string; name: string; icon?: string | null }[];
+  }, 
+  MenuItem
+> = async ({ 
+  sectionId, 
+  name, 
+  description, 
+  price, 
+  position, 
+  imageUrl,
+  dietaryTags = [],
+  allergens = []
+}, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to create a menu item');
   }
@@ -303,12 +332,63 @@ export const createMenuItem: CreateMenuItem<{ sectionId: string; name: string; d
       price: price || 0,
       position,
       imageUrl,
-      section: { connect: { id: sectionId } }
+      section: { connect: { id: sectionId } },
+      // Connect or create the dietary tags
+      ...(dietaryTags.length > 0 && {
+        dietaryTags: {
+          connectOrCreate: dietaryTags.map(tag => ({
+            where: { id: tag.id },
+            create: {
+              id: tag.id,
+              name: tag.name,
+              icon: tag.icon
+            }
+          }))
+        }
+      }),
+      // Connect or create the allergens
+      ...(allergens.length > 0 && {
+        allergens: {
+          connectOrCreate: allergens.map(allergen => ({
+            where: { id: allergen.id },
+            create: {
+              id: allergen.id,
+              name: allergen.name,
+              icon: allergen.icon
+            }
+          }))
+        }
+      })
+    },
+    include: {
+      dietaryTags: true,
+      allergens: true
     }
   });
 };
 
-export const updateMenuItem: UpdateMenuItem<{ itemId: string; name?: string; description?: string; price?: number; position?: number; imageUrl?: string }, MenuItem> = async ({ itemId, name, description, price, position, imageUrl }, context) => {
+export const updateMenuItem: UpdateMenuItem<
+  { 
+    itemId: string; 
+    name?: string; 
+    description?: string; 
+    price?: number; 
+    position?: number; 
+    imageUrl?: string;
+    dietaryTags?: { id: string; name: string; icon?: string | null }[];
+    allergens?: { id: string; name: string; icon?: string | null }[];
+  }, 
+  MenuItem
+> = async ({ 
+  itemId, 
+  name, 
+  description, 
+  price, 
+  position, 
+  imageUrl,
+  dietaryTags,
+  allergens
+}, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to update a menu item');
   }
@@ -326,14 +406,65 @@ export const updateMenuItem: UpdateMenuItem<{ itemId: string; name?: string; des
     throw new HttpError(403, 'You do not have permission to update this item');
   }
 
+  // Disconnect all existing dietary tags and allergens if they're being updated
+  const updateData: any = {
+    ...(name && { name }),
+    ...(description !== undefined && { description }),
+    ...(price !== undefined && { price }),
+    ...(position !== undefined && { position }),
+    ...(imageUrl !== undefined && { imageUrl })
+  };
+
+  // Handle dietary tags updates
+  if (dietaryTags !== undefined) {
+    // First disconnect all existing tags
+    updateData.dietaryTags = {
+      set: [] // Clear existing connections
+    };
+    
+    // Then connect or create new tags
+    if (dietaryTags.length > 0) {
+      updateData.dietaryTags = {
+        connectOrCreate: dietaryTags.map(tag => ({
+          where: { id: tag.id },
+          create: {
+            id: tag.id,
+            name: tag.name,
+            icon: tag.icon
+          }
+        }))
+      };
+    }
+  }
+
+  // Handle allergens updates
+  if (allergens !== undefined) {
+    // First disconnect all existing allergens
+    updateData.allergens = {
+      set: [] // Clear existing connections
+    };
+    
+    // Then connect or create new allergens
+    if (allergens.length > 0) {
+      updateData.allergens = {
+        connectOrCreate: allergens.map(allergen => ({
+          where: { id: allergen.id },
+          create: {
+            id: allergen.id,
+            name: allergen.name,
+            icon: allergen.icon
+          }
+        }))
+      };
+    }
+  }
+
   return context.entities.MenuItem.update({
     where: { id: itemId },
-    data: {
-      ...(name && { name }),
-      ...(description !== undefined && { description }),
-      ...(price !== undefined && { price }),
-      ...(position !== undefined && { position }),
-      ...(imageUrl !== undefined && { imageUrl })
+    data: updateData,
+    include: {
+      dietaryTags: true,
+      allergens: true
     }
   });
 };
@@ -401,4 +532,114 @@ export const getMenuItemImageUploadUrl: GetMenuItemImageUploadUrl<{ itemId: stri
   });
 
   return { uploadUrl, publicUrl };
+};
+
+// Type definitions for the reordering functions
+interface ReorderMenuSectionsInput {
+  menuId: string;
+  orderedSectionIds: string[];
+}
+
+interface ReorderMenuItemsInput {
+  sectionId: string;
+  orderedItemIds: string[];
+}
+
+export const reorderMenuSections = async ({ menuId, orderedSectionIds }: ReorderMenuSectionsInput, context: any) => {
+  if (!context.user) {
+    throw new HttpError(401, 'You must be logged in to reorder menu sections');
+  }
+
+  const menu = await context.entities.Menu.findUnique({
+    where: { id: menuId },
+    include: { sections: true }
+  });
+
+  if (!menu) {
+    throw new HttpError(404, 'Menu not found');
+  }
+
+  if (menu.userId !== context.user.id) {
+    throw new HttpError(403, 'You do not have permission to update this menu');
+  }
+
+  // Verify all section IDs belong to this menu
+  const menuSectionIds = menu.sections.map((section: { id: string }) => section.id);
+  const allSectionsValid = orderedSectionIds.every((id: string) => menuSectionIds.includes(id));
+  
+  if (!allSectionsValid) {
+    throw new HttpError(400, 'Invalid section IDs provided');
+  }
+
+  // Update positions for all sections
+  await Promise.all(
+    orderedSectionIds.map((sectionId: string, index: number) => {
+      return context.entities.MenuSection.update({
+        where: { id: sectionId },
+        data: { position: index }
+      });
+    })
+  );
+  
+  // Return the updated menu with sections in the new order
+  return context.entities.Menu.findUnique({
+    where: { id: menuId },
+    include: {
+      sections: {
+        orderBy: { position: 'asc' },
+        include: {
+          items: {
+            orderBy: { position: 'asc' }
+          }
+        }
+      }
+    }
+  });
+};
+
+export const reorderMenuItems = async ({ sectionId, orderedItemIds }: ReorderMenuItemsInput, context: any) => {
+  if (!context.user) {
+    throw new HttpError(401, 'You must be logged in to reorder menu items');
+  }
+
+  const section = await context.entities.MenuSection.findUnique({
+    where: { id: sectionId },
+    include: { menu: true, items: true }
+  });
+
+  if (!section) {
+    throw new HttpError(404, 'Section not found');
+  }
+
+  if (section.menu.userId !== context.user.id) {
+    throw new HttpError(403, 'You do not have permission to update this section');
+  }
+
+  // Verify all item IDs belong to this section
+  const sectionItemIds = section.items.map((item: { id: string }) => item.id);
+  const allItemsValid = orderedItemIds.every((id: string) => sectionItemIds.includes(id));
+  
+  if (!allItemsValid) {
+    throw new HttpError(400, 'Invalid item IDs provided');
+  }
+
+  // Update positions for all items
+  await Promise.all(
+    orderedItemIds.map((itemId: string, index: number) => {
+      return context.entities.MenuItem.update({
+        where: { id: itemId },
+        data: { position: index }
+      });
+    })
+  );
+  
+  // Return the updated section with items in the new order
+  return context.entities.MenuSection.findUnique({
+    where: { id: sectionId },
+    include: {
+      items: {
+        orderBy: { position: 'asc' }
+      }
+    }
+  });
 }; 
