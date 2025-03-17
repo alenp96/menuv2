@@ -307,8 +307,8 @@ const PublicMenuPage = () => {
             overflow: hidden;
           }
           .item-thumbnail {
-            width: 60px;
-            height: 60px;
+            width: 90px;
+            height: 90px;
             object-fit: cover;
             border-radius: 8px;
             transition: transform 0.3s ease;
@@ -349,9 +349,20 @@ const PublicMenuPage = () => {
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             animation: slideUp 0.3s ease;
           }
+          .modal-image-container {
+            position: relative;
+            width: 85%;
+            max-width: 400px;
+            margin: 0 auto;
+            padding-bottom: 113.33%; /* Slightly shorter 4:3 aspect ratio */
+            overflow: hidden;
+          }
           .modal-image {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            height: 300px;
+            height: 100%;
             object-fit: cover;
           }
           @keyframes fadeIn {
@@ -550,7 +561,7 @@ const PublicMenuPage = () => {
                     >
                       <div className="p-4">
                         <div className="flex justify-between items-start">
-                          <div className="flex items-start space-x-3">
+                          <div className="flex items-start space-x-4">
                             {/* Show thumbnail */}
                             {item.imageUrl && (
                               <div className="flex-shrink-0">
@@ -560,7 +571,7 @@ const PublicMenuPage = () => {
                                   className="item-thumbnail"
                                   onError={(e) => {
                                     const imgElement = e.currentTarget;
-                                    imgElement.src = 'https://via.placeholder.com/60x60?text=NA';
+                                    imgElement.src = 'https://via.placeholder.com/90x90?text=NA';
                                     imgElement.style.objectFit = 'contain';
                                   }}
                                 />
@@ -638,21 +649,25 @@ const PublicMenuPage = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {selectedItem.imageUrl ? (
-              <img 
-                src={selectedItem.imageUrl} 
-                alt={selectedItem.name} 
-                className="modal-image"
-                onError={(e) => {
-                  const imgElement = e.currentTarget;
-                  imgElement.src = 'https://via.placeholder.com/600x300?text=Image+Not+Available';
-                  imgElement.style.objectFit = 'contain';
-                }}
-              />
+              <div className="modal-image-container">
+                <img 
+                  src={selectedItem.imageUrl} 
+                  alt={selectedItem.name} 
+                  className="modal-image"
+                  onError={(e) => {
+                    const imgElement = e.currentTarget;
+                    imgElement.src = 'https://via.placeholder.com/600x300?text=Image+Not+Available';
+                    imgElement.style.objectFit = 'contain';
+                  }}
+                />
+              </div>
             ) : (
-              <div className="w-full h-48 bg-amber-100 flex items-center justify-center">
-                <svg className="w-12 h-12 text-amber-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" d="M5 4a3 3 0 00-3 3v10a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm0 2h10a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
+              <div className="modal-image-container">
+                <div className="modal-image bg-amber-100 flex items-center justify-center">
+                  <svg className="w-12 h-12 text-amber-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M5 4a3 3 0 00-3 3v10a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm0 2h10a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
               </div>
             )}
             
