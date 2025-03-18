@@ -33,6 +33,7 @@ const MenuEditorPage = () => {
   // Handlers
   const handleMenuUpdated = () => {
     setHasUnsavedChanges(false);
+    // Force a full refetch to get the latest data
     refetch();
   };
   

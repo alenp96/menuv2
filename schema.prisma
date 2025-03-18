@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -110,6 +111,7 @@ model Menu {
   currencyCode String       @default("USD")
   currencySymbol String     @default("$")
   currencyPosition String   @default("prefix")
+  template    String        @default("default")  // Options: default, no-images
   user        User          @relation(fields: [userId], references: [id])
   sections    MenuSection[]
 }

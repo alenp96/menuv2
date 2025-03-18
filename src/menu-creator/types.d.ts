@@ -1,4 +1,6 @@
+// *** Temporarily commenting out problematic module declarations ***
 // Declaration for react-beautiful-dnd
+/*
 declare module 'react-beautiful-dnd' {
   import * as React from 'react';
 
@@ -100,6 +102,7 @@ declare module 'react-beautiful-dnd' {
     };
   }
 }
+*/
 
 // Type declarations for Menu Creator entities
 export type Menu = {
@@ -112,6 +115,10 @@ export type Menu = {
   publicUrl: string;
   userId: string;
   sections: MenuSection[];
+  currencyCode: string;
+  currencySymbol: string;
+  currencyPosition: string;
+  template: string;
 };
 
 export type MenuSection = {
@@ -138,17 +145,9 @@ export type MenuItem = {
 };
 
 // Add a type assertion function to help with TypeScript errors
-export function assertMenu(menu: any): Menu {
-  return menu as Menu;
-}
-
-export function assertMenuSection(section: any): MenuSection {
-  return section as MenuSection;
-}
-
-export function assertMenuItem(item: any): MenuItem {
-  return item as MenuItem;
-}
+declare function assertMenu(menu: any): Menu;
+declare function assertMenuSection(section: any): MenuSection;
+declare function assertMenuItem(item: any): MenuItem;
 
 // Operation types
 export type GetMenusByUser = (args: any, context: any) => Promise<Menu[]>;
@@ -175,7 +174,16 @@ declare module 'wasp/client/operations' {
   
   // Menu actions
   export const createMenu: (args: { name: string, description?: string }) => Promise<Menu>;
-  export const updateMenu: (args: { menuId: string, name: string, description: string, publicUrl: string }) => Promise<Menu>;
+  export const updateMenu: (args: { 
+    menuId: string, 
+    name: string, 
+    description: string, 
+    publicUrl: string,
+    currencyCode?: string,
+    currencySymbol?: string,
+    currencyPosition?: string,
+    template?: string
+  }) => Promise<Menu>;
   export const deleteMenu: (args: { menuId: string }) => Promise<void>;
   export const publishMenu: (args: { menuId: string }) => Promise<Menu>;
   

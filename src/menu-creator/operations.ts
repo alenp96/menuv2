@@ -25,26 +25,74 @@ export const getMenusByUser: GetMenusByUser<void, Menu[]> = async (args, context
     throw new HttpError(401, 'You must be logged in to view menus');
   }
 
-  return context.entities.Menu.findMany({
+  // Get menus without requesting the template field by explicitly selecting fields
+  const menus = await context.entities.Menu.findMany({
     where: { userId: context.user.id },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      isPublished: true,
+      publicUrl: true,
+      userId: true,
+      currencyCode: true,
+      currencySymbol: true,
+      currencyPosition: true,
+      sections: true
+    }
   });
+
+  // Add the template field programmatically
+  return menus.map((menu: any) => ({
+    ...menu,
+    template: 'default'
+  }));
 };
 
-export const getMenuById: GetMenuById<{ menuId: string }, Menu> = async ({ menuId }, context) => {
+export const getMenuById: GetMenuById<{ menuId: string; template?: string }, Menu> = async ({ menuId, template }, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to view this menu');
   }
 
   const menu = await context.entities.Menu.findUnique({
     where: { id: menuId },
-    include: {
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      isPublished: true,
+      publicUrl: true,
+      userId: true,
+      currencyCode: true,
+      currencySymbol: true,
+      currencyPosition: true,
       sections: {
         orderBy: { position: 'asc' },
-        include: {
+        select: {
+          id: true,
+          createdAt: true,
+          updatedAt: true,
+          name: true,
+          description: true,
+          position: true,
+          menuId: true,
           items: {
             orderBy: { position: 'asc' },
-            include: {
+            select: {
+              id: true,
+              createdAt: true,
+              updatedAt: true,
+              name: true,
+              description: true,
+              price: true,
+              position: true,
+              imageUrl: true,
+              sectionId: true,
               dietaryTags: true,
               allergens: true
             }
@@ -62,19 +110,50 @@ export const getMenuById: GetMenuById<{ menuId: string }, Menu> = async ({ menuI
     throw new HttpError(403, 'You do not have permission to view this menu');
   }
 
-  return menu;
+  // Add the template field programmatically, using any template value passed in or default
+  return {
+    ...menu,
+    template: template || 'default'
+  };
 };
 
-export const getPublicMenu: GetPublicMenu<{ publicUrl: string }, Menu> = async ({ publicUrl }, context) => {
+export const getPublicMenu: GetPublicMenu<{ publicUrl: string; template?: string }, Menu> = async ({ publicUrl, template }, context) => {
   const menu = await context.entities.Menu.findUnique({
     where: { publicUrl },
-    include: {
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      isPublished: true,
+      publicUrl: true,
+      userId: true,
+      currencyCode: true,
+      currencySymbol: true,
+      currencyPosition: true,
       sections: {
         orderBy: { position: 'asc' },
-        include: {
+        select: {
+          id: true,
+          createdAt: true,
+          updatedAt: true,
+          name: true,
+          description: true,
+          position: true,
+          menuId: true,
           items: {
             orderBy: { position: 'asc' },
-            include: {
+            select: {
+              id: true,
+              createdAt: true,
+              updatedAt: true,
+              name: true,
+              description: true,
+              price: true,
+              position: true,
+              imageUrl: true,
+              sectionId: true,
               dietaryTags: true,
               allergens: true
             }
@@ -88,20 +167,28 @@ export const getPublicMenu: GetPublicMenu<{ publicUrl: string }, Menu> = async (
     throw new HttpError(404, 'Menu not found or not published');
   }
 
-  return menu;
+  // Add the template field programmatically, using the requested template if available
+  return {
+    ...menu,
+    template: template || 'default'
+  };
 };
 
 // Actions
 export const createMenu: CreateMenu<{ name: string; description?: string }, Menu> = async ({ name, description }, context) => {
+  console.log('Create menu called with:', { name, description });
+  
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to create a menu');
   }
 
-  // Generate a unique URL for the menu
-  const publicUrl = nanoid(10);
+  try {
+    // Generate a unique URL for the menu
+    const publicUrl = nanoid(10);
+    console.log('Generated publicUrl:', publicUrl);
 
-  return context.entities.Menu.create({
-    data: {
+    // Create the menu WITHOUT the template field
+    const menuData = {
       name,
       description,
       publicUrl,
@@ -109,8 +196,27 @@ export const createMenu: CreateMenu<{ name: string; description?: string }, Menu
       currencySymbol: '$',
       currencyPosition: 'prefix',
       user: { connect: { id: context.user.id } }
-    }
-  });
+    };
+    
+    // Explicitly don't include the template field here
+    console.log('Creating menu with data:', menuData);
+    
+    const menu = await context.entities.Menu.create({
+      data: menuData
+    });
+
+    console.log('Menu created:', menu);
+
+    // Add the template field programmatically and empty sections array
+    return {
+      ...menu,
+      template: 'default',
+      sections: []
+    };
+  } catch (error) {
+    console.error('Error creating menu:', error);
+    throw error;
+  }
 };
 
 export const updateMenu: UpdateMenu<{ 
@@ -121,6 +227,7 @@ export const updateMenu: UpdateMenu<{
   currencyCode?: string;
   currencySymbol?: string;
   currencyPosition?: string;
+  template?: string;
 }, Menu> = async ({ 
   menuId, 
   name, 
@@ -128,14 +235,20 @@ export const updateMenu: UpdateMenu<{
   publicUrl,
   currencyCode,
   currencySymbol,
-  currencyPosition
+  currencyPosition,
+  template  // We'll receive this but not use it until migration is run
 }, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to update a menu');
   }
 
   const menu = await context.entities.Menu.findUnique({
-    where: { id: menuId }
+    where: { id: menuId },
+    select: {
+      id: true,
+      userId: true,
+      publicUrl: true
+    }
   });
 
   if (!menu) {
@@ -149,7 +262,10 @@ export const updateMenu: UpdateMenu<{
   // Check if the publicUrl is already in use by another menu
   if (publicUrl !== menu.publicUrl) {
     const existingMenu = await context.entities.Menu.findUnique({
-      where: { publicUrl }
+      where: { publicUrl },
+      select: {
+        id: true
+      }
     });
 
     if (existingMenu && existingMenu.id !== menuId) {
@@ -157,7 +273,8 @@ export const updateMenu: UpdateMenu<{
     }
   }
 
-  return context.entities.Menu.update({
+  // Update the menu without the template field
+  const updatedMenu = await context.entities.Menu.update({
     where: { id: menuId },
     data: { 
       name, 
@@ -166,8 +283,28 @@ export const updateMenu: UpdateMenu<{
       ...(currencyCode && { currencyCode }),
       ...(currencySymbol && { currencySymbol }),
       ...(currencyPosition && { currencyPosition })
+      // template field omitted until migration is run
+    },
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      isPublished: true,
+      publicUrl: true,
+      userId: true,
+      currencyCode: true,
+      currencySymbol: true,
+      currencyPosition: true
     }
   });
+
+  // Add the template field programmatically
+  return {
+    ...updatedMenu,
+    template: template || 'default'
+  };
 };
 
 export const deleteMenu: DeleteMenu<{ menuId: string }, void> = async ({ menuId }, context) => {
@@ -176,7 +313,11 @@ export const deleteMenu: DeleteMenu<{ menuId: string }, void> = async ({ menuId 
   }
 
   const menu = await context.entities.Menu.findUnique({
-    where: { id: menuId }
+    where: { id: menuId },
+    select: {
+      id: true,
+      userId: true
+    }
   });
 
   if (!menu) {
@@ -199,7 +340,20 @@ export const publishMenu: PublishMenu<{ menuId: string }, Menu> = async ({ menuI
 
   const menu = await context.entities.Menu.findUnique({
     where: { id: menuId },
-    include: { sections: { include: { items: true } } }
+    select: {
+      id: true,
+      userId: true,
+      sections: {
+        select: {
+          id: true,
+          items: {
+            select: {
+              id: true
+            }
+          }
+        }
+      }
+    }
   });
 
   if (!menu) {
@@ -228,10 +382,30 @@ export const publishMenu: PublishMenu<{ menuId: string }, Menu> = async ({ menuI
     throw new HttpError(400, 'Menu must have at least one item before publishing');
   }
 
-  return context.entities.Menu.update({
+  const updatedMenu = await context.entities.Menu.update({
     where: { id: menuId },
-    data: { isPublished: true }
+    data: { isPublished: true },
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      isPublished: true,
+      publicUrl: true,
+      userId: true,
+      currencyCode: true,
+      currencySymbol: true,
+      currencyPosition: true
+    }
   });
+
+  // Add the template field programmatically
+  return {
+    ...updatedMenu,
+    template: 'default',
+    sections: menu.sections
+  };
 };
 
 export const createMenuSection: CreateMenuSection<{ menuId: string; name: string; description?: string; position: number }, MenuSection> = async ({ menuId, name, description, position }, context) => {
@@ -240,7 +414,11 @@ export const createMenuSection: CreateMenuSection<{ menuId: string; name: string
   }
 
   const menu = await context.entities.Menu.findUnique({
-    where: { id: menuId }
+    where: { id: menuId },
+    select: {
+      id: true,
+      userId: true
+    }
   });
 
   if (!menu) {
@@ -268,7 +446,14 @@ export const updateMenuSection: UpdateMenuSection<{ sectionId: string; name?: st
 
   const section = await context.entities.MenuSection.findUnique({
     where: { id: sectionId },
-    include: { menu: true }
+    select: {
+      id: true,
+      menu: {
+        select: {
+          userId: true
+        }
+      }
+    }
   });
 
   if (!section) {
@@ -296,7 +481,14 @@ export const deleteMenuSection: DeleteMenuSection<{ sectionId: string }, void> =
 
   const section = await context.entities.MenuSection.findUnique({
     where: { id: sectionId },
-    include: { menu: true }
+    select: {
+      id: true,
+      menu: {
+        select: {
+          userId: true
+        }
+      }
+    }
   });
 
   if (!section) {
@@ -340,7 +532,14 @@ export const createMenuItem: CreateMenuItem<
 
   const section = await context.entities.MenuSection.findUnique({
     where: { id: sectionId },
-    include: { menu: true }
+    select: {
+      id: true,
+      menu: {
+        select: {
+          userId: true
+        }
+      }
+    }
   });
 
   if (!section) {
@@ -386,7 +585,16 @@ export const createMenuItem: CreateMenuItem<
         }
       })
     },
-    include: {
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      price: true,
+      position: true,
+      imageUrl: true,
+      sectionId: true,
       dietaryTags: true,
       allergens: true
     }
@@ -421,7 +629,18 @@ export const updateMenuItem: UpdateMenuItem<
 
   const item = await context.entities.MenuItem.findUnique({
     where: { id: itemId },
-    include: { section: { include: { menu: true } } }
+    select: {
+      id: true,
+      section: {
+        select: {
+          menu: {
+            select: {
+              userId: true
+            }
+          }
+        }
+      }
+    }
   });
 
   if (!item) {
@@ -488,7 +707,16 @@ export const updateMenuItem: UpdateMenuItem<
   return context.entities.MenuItem.update({
     where: { id: itemId },
     data: updateData,
-    include: {
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      price: true,
+      position: true,
+      imageUrl: true,
+      sectionId: true,
       dietaryTags: true,
       allergens: true
     }
@@ -502,7 +730,18 @@ export const deleteMenuItem: DeleteMenuItem<{ itemId: string }, void> = async ({
 
   const item = await context.entities.MenuItem.findUnique({
     where: { id: itemId },
-    include: { section: { include: { menu: true } } }
+    select: {
+      id: true,
+      section: {
+        select: {
+          menu: {
+            select: {
+              userId: true
+            }
+          }
+        }
+      }
+    }
   });
 
   if (!item) {
@@ -535,7 +774,19 @@ export const getMenuItemImageUploadUrl: GetMenuItemImageUploadUrl<{ itemId: stri
     // For existing items, verify permissions
     const item = await context.entities.MenuItem.findUnique({
       where: { id: itemId },
-      include: { section: { include: { menu: true } } }
+      select: {
+        id: true,
+        section: {
+          select: {
+            menu: {
+              select: {
+                id: true,
+                userId: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!item) {
@@ -578,7 +829,15 @@ export const reorderMenuSections = async ({ menuId, orderedSectionIds }: Reorder
 
   const menu = await context.entities.Menu.findUnique({
     where: { id: menuId },
-    include: { sections: true }
+    select: {
+      id: true,
+      userId: true,
+      sections: {
+        select: {
+          id: true
+        }
+      }
+    }
   });
 
   if (!menu) {
@@ -608,19 +867,54 @@ export const reorderMenuSections = async ({ menuId, orderedSectionIds }: Reorder
   );
   
   // Return the updated menu with sections in the new order
-  return context.entities.Menu.findUnique({
+  const updatedMenu = await context.entities.Menu.findUnique({
     where: { id: menuId },
-    include: {
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      isPublished: true,
+      publicUrl: true,
+      userId: true,
+      currencyCode: true,
+      currencySymbol: true,
+      currencyPosition: true,
       sections: {
         orderBy: { position: 'asc' },
-        include: {
+        select: {
+          id: true,
+          createdAt: true,
+          updatedAt: true,
+          name: true,
+          description: true,
+          position: true,
+          menuId: true,
           items: {
-            orderBy: { position: 'asc' }
+            orderBy: { position: 'asc' },
+            select: {
+              id: true,
+              createdAt: true,
+              updatedAt: true,
+              name: true,
+              description: true,
+              price: true,
+              position: true,
+              imageUrl: true,
+              sectionId: true
+            }
           }
         }
       }
     }
   });
+
+  // Add the template field programmatically
+  return {
+    ...updatedMenu,
+    template: 'default'
+  };
 };
 
 export const reorderMenuItems = async ({ sectionId, orderedItemIds }: ReorderMenuItemsInput, context: any) => {
@@ -630,7 +924,19 @@ export const reorderMenuItems = async ({ sectionId, orderedItemIds }: ReorderMen
 
   const section = await context.entities.MenuSection.findUnique({
     where: { id: sectionId },
-    include: { menu: true, items: true }
+    select: {
+      id: true,
+      menu: {
+        select: {
+          userId: true
+        }
+      },
+      items: {
+        select: {
+          id: true
+        }
+      }
+    }
   });
 
   if (!section) {
@@ -660,12 +966,34 @@ export const reorderMenuItems = async ({ sectionId, orderedItemIds }: ReorderMen
   );
   
   // Return the updated section with items in the new order
-  return context.entities.MenuSection.findUnique({
+  const updatedSection = await context.entities.MenuSection.findUnique({
     where: { id: sectionId },
-    include: {
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      name: true,
+      description: true,
+      position: true,
+      menuId: true,
       items: {
-        orderBy: { position: 'asc' }
+        orderBy: { position: 'asc' },
+        select: {
+          id: true,
+          createdAt: true,
+          updatedAt: true,
+          name: true,
+          description: true,
+          price: true,
+          position: true,
+          imageUrl: true,
+          sectionId: true,
+          dietaryTags: true,
+          allergens: true
+        }
       }
     }
   });
+
+  return updatedSection;
 }; 

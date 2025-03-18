@@ -55,7 +55,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                           const item = assertMenuItem(itemData);
                           return (
                             <div key={item.id} className="border-b border-gray-200 pb-4 last:border-b-0 last:pb-0">
-                              {item.imageUrl && (
+                              {menu.template === 'default' && item.imageUrl && (
                                 <div className="w-full h-32 overflow-hidden mb-3 rounded-md">
                                   <img 
                                     src={item.imageUrl} 
@@ -66,9 +66,37 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                               )}
                               <div className="flex justify-between">
                                 <h3 className="font-medium text-gray-800">{item.name}</h3>
-                                <span className="font-medium text-amber-700">${item.price.toFixed(2)}</span>
+                                <span className="font-medium text-amber-700">
+                                  {menu.currencyPosition === 'prefix' 
+                                    ? `${menu.currencySymbol}${item.price.toFixed(2)}`
+                                    : `${item.price.toFixed(2)}${menu.currencySymbol}`
+                                  }
+                                </span>
                               </div>
                               {item.description && <p className="text-gray-600 text-sm mt-1">{item.description}</p>}
+                              
+                              {/* Show dietary tags and allergens */}
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {item.dietaryTags && item.dietaryTags.length > 0 && item.dietaryTags.map(tag => (
+                                  <span 
+                                    key={tag.id}
+                                    className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-md flex items-center"
+                                  >
+                                    {tag.icon && <span className="mr-1">{tag.icon}</span>}
+                                    {tag.name}
+                                  </span>
+                                ))}
+                                
+                                {item.allergens && item.allergens.length > 0 && item.allergens.map(allergen => (
+                                  <span 
+                                    key={allergen.id}
+                                    className="px-1.5 py-0.5 bg-red-100 text-red-800 text-xs rounded-md flex items-center"
+                                  >
+                                    {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
+                                    {allergen.name}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           );
                         })}

@@ -21,18 +21,36 @@ const MenusPage = () => {
     e.preventDefault();
     if (!newMenuName.trim()) return;
 
+    setIsCreating(true);
     try {
+      console.log('Creating menu with:', { 
+        name: newMenuName, 
+        description: newMenuDescription || undefined 
+      });
+      
       const newMenu = await createMenuFn({
         name: newMenuName,
         description: newMenuDescription || undefined
       });
-      setNewMenuName('');
-      setNewMenuDescription('');
-      setIsCreating(false);
-      refetch();
-      navigate(`/menus/${assertMenu(newMenu).id}`);
-    } catch (error) {
+      
+      console.log('New menu created:', newMenu);
+      
+      if (newMenu) {
+        setNewMenuName('');
+        setNewMenuDescription('');
+        setIsCreating(false);
+        refetch();
+        
+        // Navigate to the new menu
+        navigate(`/menus/${assertMenu(newMenu).id}`);
+      } else {
+        console.error('Menu created but returned null');
+        alert('Error: Menu was created but no data was returned. Please refresh the page.');
+      }
+    } catch (error: any) {
       console.error('Failed to create menu:', error);
+      alert(`Failed to create menu: ${error.message || 'Unknown error'}`);
+      setIsCreating(false);
     }
   };
 

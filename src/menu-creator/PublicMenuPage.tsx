@@ -12,6 +12,19 @@ const PublicMenuPage = () => {
   const { data: menuData, isLoading, error } = useQuery(getPublicMenu, { publicUrl });
   const menu = menuData ? assertMenu(menuData) : null;
   
+  // Check localStorage for saved template if menu is available
+  useEffect(() => {
+    if (menu) {
+      // Try to get the template from localStorage
+      const savedTemplate = localStorage.getItem(`menu_template_${menu.id}`);
+      if (savedTemplate && (savedTemplate === 'default' || savedTemplate === 'no-images')) {
+        // Update the menu object with the saved template
+        menu.template = savedTemplate;
+      }
+      console.log('Using template:', menu.template);
+    }
+  }, [menu]);
+  
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
@@ -611,7 +624,11 @@ const PublicMenuPage = () => {
               </div>
               
               {section.items.length > 0 ? (
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 menu-grid">
+                <div className={`grid gap-6 grid-cols-1 ${
+                  menu.template === 'default'
+                    ? 'md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3'
+                    : 'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                } menu-grid`}>
                   {section.items.map((item) => (
                     <div 
                       key={item.id} 
@@ -619,68 +636,122 @@ const PublicMenuPage = () => {
                       onClick={() => openItemModal(item)}
                     >
                       <div className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-start space-x-4">
-                            {/* Show thumbnail */}
-                            {item.imageUrl && (
-                              <div className="flex-shrink-0">
-                                <img 
-                                  src={item.imageUrl} 
-                                  alt={item.name} 
-                                  className="item-thumbnail"
-                                  onError={(e) => {
-                                    const imgElement = e.currentTarget;
-                                    imgElement.src = 'https://via.placeholder.com/90x90?text=NA';
-                                    imgElement.style.objectFit = 'contain';
-                                  }}
-                                />
+                        {menu.template === 'default' ? (
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-start space-x-4">
+                              {/* Show thumbnail only in default template */}
+                              {item.imageUrl && (
+                                <div className="flex-shrink-0">
+                                  <img 
+                                    src={item.imageUrl} 
+                                    alt={item.name} 
+                                    className="item-thumbnail"
+                                    onError={(e) => {
+                                      const imgElement = e.currentTarget;
+                                      imgElement.src = 'https://via.placeholder.com/90x90?text=NA';
+                                      imgElement.style.objectFit = 'contain';
+                                    }}
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-gray-900 hover:text-amber-600">
+                                  {item.name}
+                                </h3>
+                                {item.description && (
+                                  <p className="mt-2 text-gray-600 text-sm">{item.description}</p>
+                                )}
+                                
+                                {/* Display dietary tags */}
+                                {item.dietaryTags && item.dietaryTags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {item.dietaryTags.map(tag => (
+                                      <span 
+                                        key={tag.id}
+                                        className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-md flex items-center"
+                                        title={tag.name}
+                                      >
+                                        {tag.icon && <span className="mr-1">{tag.icon}</span>}
+                                        {tag.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {/* Display allergens */}
+                                {item.allergens && item.allergens.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {item.allergens.map(allergen => (
+                                      <span 
+                                        key={allergen.id}
+                                        className="px-1.5 py-0.5 bg-red-100 text-red-800 text-xs rounded-md flex items-center"
+                                        title={allergen.name}
+                                      >
+                                        {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
+                                        {allergen.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            </div>
+                            <span className="text-amber-600 font-bold whitespace-nowrap ml-2">
+                              {formatPrice(item.price, menu)}
+                            </span>
+                          </div>
+                        ) : (
+                          /* No-Images template layout */
+                          <div className="flex justify-between items-start">
                             <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-gray-900 hover:text-amber-600">
-                                {item.name}
-                              </h3>
+                              <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-lg font-semibold text-gray-900 hover:text-amber-600">
+                                  {item.name}
+                                </h3>
+                                <span className="text-amber-600 font-bold">
+                                  {formatPrice(item.price, menu)}
+                                </span>
+                              </div>
+                              
                               {item.description && (
-                                <p className="mt-2 text-gray-600 text-sm">{item.description}</p>
+                                <p className="text-gray-600 text-sm">{item.description}</p>
                               )}
                               
-                              {/* Display dietary tags */}
-                              {item.dietaryTags && item.dietaryTags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {item.dietaryTags.map(tag => (
-                                    <span 
-                                      key={tag.id}
-                                      className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-md flex items-center"
-                                      title={tag.name}
-                                    >
-                                      {tag.icon && <span className="mr-1">{tag.icon}</span>}
-                                      {tag.name}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              
-                              {/* Display allergens */}
-                              {item.allergens && item.allergens.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {item.allergens.map(allergen => (
-                                    <span 
-                                      key={allergen.id}
-                                      className="px-1.5 py-0.5 bg-red-100 text-red-800 text-xs rounded-md flex items-center"
-                                      title={allergen.name}
-                                    >
-                                      {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
-                                      {allergen.name}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                {/* Display dietary tags */}
+                                {item.dietaryTags && item.dietaryTags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.dietaryTags.map(tag => (
+                                      <span 
+                                        key={tag.id}
+                                        className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-md flex items-center"
+                                        title={tag.name}
+                                      >
+                                        {tag.icon && <span className="mr-1">{tag.icon}</span>}
+                                        {tag.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {/* Display allergens */}
+                                {item.allergens && item.allergens.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.allergens.map(allergen => (
+                                      <span 
+                                        key={allergen.id}
+                                        className="px-1.5 py-0.5 bg-red-100 text-red-800 text-xs rounded-md flex items-center"
+                                        title={allergen.name}
+                                      >
+                                        {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
+                                        {allergen.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <span className="text-amber-600 font-bold whitespace-nowrap ml-2">
-                            {formatPrice(item.price, menu)}
-                          </span>
-                        </div>
+                        )}
                       </div>
                     </div>
                   ))}
