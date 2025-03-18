@@ -100,7 +100,8 @@ const PublicMenuPage = () => {
     setActiveSection(sectionId);
     setActiveSectionIndex(index);
     
-    const sectionElement = sectionRefs.current[sectionId];
+    // Use the id attribute for smooth scrolling
+    const sectionElement = document.getElementById(`section-${sectionId}`);
     if (sectionElement) {
       sectionElement.scrollIntoView({ behavior: 'smooth' });
     }
@@ -174,6 +175,50 @@ const PublicMenuPage = () => {
     }
   }, [filteredSections, activeSection]);
 
+  // Add scroll event listener to update active section based on scroll position
+  useEffect(() => {
+    // Skip if no sections available
+    if (!filteredSections.length) return;
+
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 150; // Offset for header
+      
+      const sectionPositions = Object.keys(sectionRefs.current).map(sectionId => {
+        const element = sectionRefs.current[sectionId];
+        if (!element) return { id: sectionId, top: 0 };
+        
+        return {
+          id: sectionId,
+          top: element.offsetTop
+        };
+      });
+      
+      // Sort by position
+      sectionPositions.sort((a, b) => a.top - b.top);
+      
+      // Find the current section
+      for (let i = sectionPositions.length - 1; i >= 0; i--) {
+        if (scrollPosition >= sectionPositions[i].top) {
+          if (activeSection !== sectionPositions[i].id) {
+            setActiveSection(sectionPositions[i].id);
+            // Find index of this section in filteredSections
+            const index = filteredSections.findIndex(s => s.id === sectionPositions[i].id);
+            if (index !== -1) {
+              setActiveSectionIndex(index);
+            }
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [activeSection, filteredSections]);
+
   if (isLoading) return (
     <div className="flex justify-center items-center h-screen bg-gray-50">
       <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-amber-500"></div>
@@ -233,7 +278,12 @@ const PublicMenuPage = () => {
           }
           /* Section scroll adjustment */
           .menu-section {
-            scroll-margin-top: 130px; /* Adjust for sticky header height */
+            scroll-margin-top: 100px; /* Adjust based on header height */
+          }
+          @media (min-width: 768px) {
+            .menu-section {
+              scroll-margin-top: 130px; /* Larger margin for desktop */
+            }
           }
           /* Modern visible header styles */
           .visible-header {
@@ -524,9 +574,13 @@ const PublicMenuPage = () => {
         
         <nav className="menu-section-nav overflow-x-auto py-2 px-4 flex space-x-2 md:space-x-4 md:justify-center">
           {filteredSections.map((section, index) => (
-            <button
+            <a
               key={section.id}
-              onClick={() => handleSectionClick(section.id, index)}
+              href={`#section-${section.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                handleSectionClick(section.id, index);
+              }}
               className={`whitespace-nowrap px-4 py-2 rounded-full text-sm md:text-base font-medium transition-colors ${
                 activeSection === section.id
                   ? 'bg-amber-500 text-white shadow-md'
@@ -534,7 +588,7 @@ const PublicMenuPage = () => {
               }`}
             >
               {section.name}
-            </button>
+            </a>
           ))}
         </nav>
       </div>
@@ -545,8 +599,9 @@ const PublicMenuPage = () => {
           filteredSections.map((section, sectionIndex) => (
             <div
               key={section.id}
+              id={`section-${section.id}`}
               ref={el => sectionRefs.current[section.id] = el}
-              className={`menu-section mb-12 ${activeSection === section.id ? 'block' : 'hidden md:block'}`}
+              className="menu-section mb-12"
             >
               <div className="mb-6">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900">{section.name}</h2>
