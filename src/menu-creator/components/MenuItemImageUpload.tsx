@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { getMenuItemImageUploadUrl, updateMenuItem } from 'wasp/client/operations';
 import { ALLOWED_IMAGE_TYPES } from '../menuItemImageUtils';
+import { ImageCropper } from './ImageCropper';
 
 type MenuItemImageUploadProps = {
   itemId: string;
@@ -19,6 +20,8 @@ export const MenuItemImageUpload: React.FC<MenuItemImageUploadProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -37,18 +40,33 @@ export const MenuItemImageUpload: React.FC<MenuItemImageUploadProps> = ({
       return;
     }
 
+    // Show the image cropper instead of uploading immediately
+    setSelectedFile(file);
+    setShowCropper(true);
+    setError(null);
+  };
+
+  const handleCroppedImage = async (croppedBlob: Blob) => {
+    setShowCropper(false);
     setIsUploading(true);
     setError(null);
     setUploadProgress(0);
 
     try {
+      // Create a File object from the Blob
+      const fileName = selectedFile?.name || 'cropped-image.jpg';
+      const croppedFile = new File([croppedBlob], fileName, { 
+        type: 'image/jpeg', 
+        lastModified: Date.now() 
+      });
+
       console.log('Getting upload URL for item:', itemId);
       
       // Get the upload URL
       const { uploadUrl, publicUrl } = await getMenuItemImageUploadUrl({ 
         itemId, 
-        fileName: file.name, 
-        fileType: file.type 
+        fileName: croppedFile.name, 
+        fileType: croppedFile.type 
       });
 
       console.log('Received upload URL:', uploadUrl);
@@ -56,9 +74,9 @@ export const MenuItemImageUpload: React.FC<MenuItemImageUploadProps> = ({
 
       // Upload the file to S3
       console.log('Uploading file to S3...');
-      await axios.put(uploadUrl, file, {
+      await axios.put(uploadUrl, croppedFile, {
         headers: {
-          'Content-Type': file.type,
+          'Content-Type': croppedFile.type,
         },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
@@ -90,10 +108,19 @@ export const MenuItemImageUpload: React.FC<MenuItemImageUploadProps> = ({
       setError('Failed to upload image. Please try again.');
     } finally {
       setIsUploading(false);
+      setSelectedFile(null);
       // Reset the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleCancelCrop = () => {
+    setShowCropper(false);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -132,6 +159,15 @@ export const MenuItemImageUpload: React.FC<MenuItemImageUploadProps> = ({
 
   return (
     <div className="mt-2">
+      {showCropper && selectedFile && (
+        <ImageCropper
+          file={selectedFile}
+          onCropComplete={handleCroppedImage}
+          onCancel={handleCancelCrop}
+          aspectRatio={3/4}
+        />
+      )}
+      
       <div className="flex items-center space-x-4">
         {currentImageUrl && (
           <div className="relative w-16 h-16 rounded-md overflow-hidden">

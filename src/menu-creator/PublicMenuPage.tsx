@@ -231,6 +231,10 @@ const PublicMenuPage = () => {
           .menu-item-card:hover {
             transform: translateY(-2px);
           }
+          /* Section scroll adjustment */
+          .menu-section {
+            scroll-margin-top: 130px; /* Adjust for sticky header height */
+          }
           /* Modern visible header styles */
           .visible-header {
             background: linear-gradient(135deg, rgba(230, 92, 0, 0.95) 0%, rgba(245, 158, 11, 0.85) 100%);
@@ -542,7 +546,7 @@ const PublicMenuPage = () => {
             <div
               key={section.id}
               ref={el => sectionRefs.current[section.id] = el}
-              className={`mb-12 ${activeSection === section.id ? 'block' : 'hidden md:block'}`}
+              className={`menu-section mb-12 ${activeSection === section.id ? 'block' : 'hidden md:block'}`}
             >
               <div className="mb-6">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900">{section.name}</h2>
