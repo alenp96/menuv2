@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useAction } from 'wasp/client/operations';
 import { updateMenu } from 'wasp/client/operations';
 import { Menu, AVAILABLE_CURRENCIES, AVAILABLE_TEMPLATES, MenuTemplate } from '../types';
@@ -8,7 +8,7 @@ interface MenuDetailsFormProps {
   onMenuUpdated: () => void;
 }
 
-export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = ({ menu, onMenuUpdated }) => {
+export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = memo(({ menu, onMenuUpdated }) => {
   const [name, setName] = useState(menu.name);
   const [description, setDescription] = useState(menu.description || '');
   const [publicUrl, setPublicUrl] = useState(menu.publicUrl);
@@ -19,25 +19,32 @@ export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = ({ menu, onMenuUp
 
   const updateMenuFn = useAction(updateMenu);
 
-  useEffect(() => {
-    setHasUnsavedChanges(
-      name !== menu.name ||
+  // Use useMemo to avoid recalculating this check on every render
+  const hasChanges = useMemo(() => {
+    return name !== menu.name ||
       description !== (menu.description || '') ||
       publicUrl !== menu.publicUrl ||
       selectedCurrency !== menu.currencyCode ||
-      selectedTemplate !== menu.template
-    );
+      selectedTemplate !== menu.template;
   }, [name, description, publicUrl, selectedCurrency, selectedTemplate, menu]);
 
   useEffect(() => {
-    // Try to load saved template from localStorage
+    setHasUnsavedChanges(hasChanges);
+  }, [hasChanges]);
+
+  useEffect(() => {
+    // First check localStorage for saved template
     const savedTemplate = localStorage.getItem(`menu_template_${menu.id}`);
     if (savedTemplate && (savedTemplate === 'default' || savedTemplate === 'no-images')) {
       setSelectedTemplate(savedTemplate as MenuTemplate);
+    } 
+    // Fallback to the menu data
+    else if (menu.template) {
+      setSelectedTemplate(menu.template as MenuTemplate);
     }
-  }, [menu.id]);
+  }, [menu.id, menu.template]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
@@ -47,9 +54,6 @@ export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = ({ menu, onMenuUp
       if (!currency) throw new Error('Invalid currency selected');
 
       const finalPublicUrl = publicUrl.trim() || name.toLowerCase().replace(/\s+/g, '-');
-      
-      // Log the template value being saved
-      console.log('Saving template:', selectedTemplate);
       
       // Save template to localStorage
       localStorage.setItem(`menu_template_${menu.id}`, selectedTemplate);
@@ -65,8 +69,6 @@ export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = ({ menu, onMenuUp
         template: selectedTemplate
       });
       
-      console.log('Updated menu:', updatedMenu);
-      
       // Update local state
       setPublicUrl(finalPublicUrl);
       setHasUnsavedChanges(false);
@@ -78,7 +80,95 @@ export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = ({ menu, onMenuUp
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [
+    name, 
+    description, 
+    publicUrl, 
+    selectedCurrency, 
+    selectedTemplate, 
+    menu.id, 
+    updateMenuFn, 
+    onMenuUpdated
+  ]);
+
+  // Handle template selection
+  const handleTemplateSelect = useCallback((templateId: MenuTemplate) => {
+    if (templateId === selectedTemplate) return; // Skip if same template
+    
+    // Update the UI immediately
+    setSelectedTemplate(templateId);
+    
+    // Update localStorage
+    localStorage.setItem(`menu_template_${menu.id}`, templateId);
+    
+    // Auto-save the template change to provide immediate feedback
+    const saveTemplateChange = async () => {
+      try {
+        const currency = AVAILABLE_CURRENCIES.find(c => c.code === selectedCurrency);
+        if (!currency) return;
+        
+        // Save to DB
+        await updateMenuFn({
+          menuId: menu.id,
+          name,
+          description: description || '',
+          publicUrl: publicUrl || name.toLowerCase().replace(/\s+/g, '-'),
+          currencyCode: currency.code,
+          currencySymbol: currency.symbol,
+          currencyPosition: currency.position,
+          template: templateId
+        });
+        
+        console.log(`Template changed to ${templateId}, saved to localStorage and database`);
+        
+        // Force menu reload
+        onMenuUpdated();
+      } catch (error) {
+        console.error('Failed to auto-save template change:', error);
+        // If DB save fails, at least we've updated localStorage and UI
+      }
+    };
+    
+    saveTemplateChange();
+  }, [menu.id, selectedTemplate, name, description, publicUrl, selectedCurrency, updateMenuFn, onMenuUpdated]);
+
+  // Memoize the template cards
+  const templateCards = useMemo(() => (
+    AVAILABLE_TEMPLATES.map((template) => (
+      <div 
+        key={template.id}
+        className={`relative rounded-lg border p-4 cursor-pointer ${
+          selectedTemplate === template.id 
+            ? 'border-amber-500 bg-amber-50' 
+            : 'border-gray-200 hover:border-gray-300'
+        }`}
+        onClick={() => handleTemplateSelect(template.id as MenuTemplate)}
+      >
+        <div className="flex items-start space-x-3">
+          {template.id === 'default' ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h7" />
+            </svg>
+          )}
+          <div>
+            <h3 className="text-sm font-medium text-gray-900">{template.name}</h3>
+            <p className="mt-1 text-xs text-gray-500">{template.description}</p>
+          </div>
+        </div>
+        {selectedTemplate === template.id && (
+          <div className="absolute top-2 right-2">
+            <svg className="h-5 w-5 text-amber-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          </div>
+        )}
+      </div>
+    ))
+  ), [selectedTemplate, handleTemplateSelect]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -119,64 +209,15 @@ export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = ({ menu, onMenuUp
         <label htmlFor="template" className="block text-sm font-medium text-gray-700">
           Menu Template
         </label>
-        <select
-          id="template"
-          value={selectedTemplate}
-          onChange={(e) => setSelectedTemplate(e.target.value as MenuTemplate)}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm"
-          disabled={isSaving}
-        >
-          {AVAILABLE_TEMPLATES.map((template) => (
-            <option key={template.id} value={template.id}>
-              {template.name}
-            </option>
-          ))}
-        </select>
         <p className="mt-2 text-sm text-gray-500">
           Choose how your menu will be displayed to customers.
         </p>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {AVAILABLE_TEMPLATES.map((template) => (
-            <div 
-              key={template.id}
-              className={`relative rounded-lg border p-4 cursor-pointer ${
-                selectedTemplate === template.id 
-                  ? 'border-amber-500 bg-amber-50' 
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => setSelectedTemplate(template.id as MenuTemplate)}
-            >
-              <div className="flex items-start space-x-3">
-                {template.id === 'default' ? (
-                  <div className="flex-shrink-0 h-10 w-10 rounded bg-amber-100 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                ) : (
-                  <div className="flex-shrink-0 h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900">{template.name}</h3>
-                  <p className="mt-1 text-xs text-gray-500">{template.description}</p>
-                </div>
-              </div>
-              {selectedTemplate === template.id && (
-                <div className="absolute top-2 right-2">
-                  <svg className="h-5 w-5 text-amber-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          ))}
+          {templateCards}
         </div>
       </div>
 
+      {/* Currency Selection */}
       <div>
         <label htmlFor="currency" className="block text-sm font-medium text-gray-700">
           Currency
@@ -190,21 +231,22 @@ export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = ({ menu, onMenuUp
         >
           {AVAILABLE_CURRENCIES.map((currency) => (
             <option key={currency.code} value={currency.code}>
-              {currency.code} ({currency.symbol}) - {currency.position === 'prefix' ? `${currency.symbol}1.00` : `1.00${currency.symbol}`}
+              {currency.code} ({currency.symbol})
             </option>
           ))}
         </select>
         <p className="mt-2 text-sm text-gray-500">
-          Select the currency for displaying prices in your menu.
+          Choose the currency for your menu prices.
         </p>
       </div>
 
+      {/* URL Slug */}
       <div>
         <label htmlFor="publicUrl" className="block text-sm font-medium text-gray-700">
-          Public URL
+          Public URL Slug
         </label>
         <div className="mt-1 flex rounded-md shadow-sm">
-          <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-gray-500 sm:text-sm">
+          <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
             menu/
           </span>
           <input
@@ -212,29 +254,42 @@ export const MenuDetailsForm: React.FC<MenuDetailsFormProps> = ({ menu, onMenuUp
             id="publicUrl"
             value={publicUrl}
             onChange={(e) => setPublicUrl(e.target.value)}
-            className="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-amber-500 focus:ring-amber-500 sm:text-sm"
-            placeholder="your-menu-url"
+            className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border-gray-300 focus:border-amber-500 focus:ring-amber-500 sm:text-sm"
+            placeholder={name.toLowerCase().replace(/\s+/g, '-')}
             disabled={isSaving}
           />
         </div>
         <p className="mt-2 text-sm text-gray-500">
-          This is the URL where your menu will be publicly accessible.
+          Customize the slug for your menu's public URL. Leave blank to auto-generate from the menu name.
         </p>
       </div>
 
-      <div className="flex justify-end space-x-3">
+      <div className="flex justify-end">
         <button
           type="submit"
-          disabled={!hasUnsavedChanges || isSaving}
-          className={`inline-flex justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white shadow-sm ${
-            hasUnsavedChanges && !isSaving
-              ? 'bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2'
-              : 'bg-gray-300 cursor-not-allowed'
-          }`}
+          disabled={isSaving || !hasUnsavedChanges}
+          className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
+            ${hasUnsavedChanges ? 'bg-amber-600 hover:bg-amber-700' : 'bg-gray-300 cursor-not-allowed'} 
+            transition-colors duration-200 flex items-center`}
         >
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          {isSaving ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Save Changes
+            </>
+          )}
         </button>
       </div>
     </form>
   );
-}; 
+}); 

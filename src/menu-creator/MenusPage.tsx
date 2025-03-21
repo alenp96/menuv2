@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from 'wasp/client/operations';
 import { useAction } from 'wasp/client/operations';
@@ -6,34 +6,29 @@ import { getMenusByUser, createMenu, deleteMenu } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { formatDistance } from 'date-fns';
 import { Menu, assertMenu } from './types';
+import CsvImportModal from './components/CsvImportModal';
 
 const MenusPage = () => {
   const { data: menus, isLoading, error, refetch } = useQuery(getMenusByUser);
   const createMenuFn = useAction(createMenu);
   const deleteMenuFn = useAction(deleteMenu);
   const [isCreating, setIsCreating] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [newMenuName, setNewMenuName] = useState('');
   const [newMenuDescription, setNewMenuDescription] = useState('');
   const navigate = useNavigate();
   const { data: user } = useAuth();
 
-  const handleCreateMenu = async (e: React.FormEvent) => {
+  const handleCreateMenu = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMenuName.trim()) return;
 
     setIsCreating(true);
     try {
-      console.log('Creating menu with:', { 
-        name: newMenuName, 
-        description: newMenuDescription || undefined 
-      });
-      
       const newMenu = await createMenuFn({
         name: newMenuName,
         description: newMenuDescription || undefined
       });
-      
-      console.log('New menu created:', newMenu);
       
       if (newMenu) {
         setNewMenuName('');
@@ -44,17 +39,15 @@ const MenusPage = () => {
         // Navigate to the new menu
         navigate(`/menus/${assertMenu(newMenu).id}`);
       } else {
-        console.error('Menu created but returned null');
         alert('Error: Menu was created but no data was returned. Please refresh the page.');
       }
     } catch (error: any) {
-      console.error('Failed to create menu:', error);
       alert(`Failed to create menu: ${error.message || 'Unknown error'}`);
       setIsCreating(false);
     }
-  };
+  }, [newMenuName, newMenuDescription, createMenuFn, refetch, navigate]);
 
-  const handleDeleteMenu = async (menuId: string) => {
+  const handleDeleteMenu = useCallback(async (menuId: string) => {
     if (window.confirm('Are you sure you want to delete this menu? This action cannot be undone.')) {
       try {
         await deleteMenuFn({ menuId });
@@ -63,7 +56,23 @@ const MenusPage = () => {
         console.error('Failed to delete menu:', error);
       }
     }
-  };
+  }, [deleteMenuFn, refetch]);
+
+  const toggleCreateForm = useCallback(() => {
+    setIsCreating(!isCreating);
+  }, [isCreating]);
+
+  const handleOpenImportModal = useCallback(() => {
+    setShowImportModal(true);
+  }, []);
+
+  const handleCloseImportModal = useCallback(() => {
+    setShowImportModal(false);
+  }, []);
+
+  const handleImportSuccess = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   if (isLoading) {
     return (
@@ -87,58 +96,74 @@ const MenusPage = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Your Menus</h1>
-        <button
-          onClick={() => setIsCreating(true)}
-          className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded"
-        >
-          Create New Menu
-        </button>
+        <div className="flex space-x-4">
+          <button
+            onClick={handleOpenImportModal}
+            className="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded"
+          >
+            Import Menu
+          </button>
+          <button
+            onClick={toggleCreateForm}
+            className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded"
+          >
+            Create New Menu
+          </button>
+        </div>
       </div>
+
+      {/* Import Modal */}
+      <CsvImportModal 
+        isOpen={showImportModal} 
+        onClose={handleCloseImportModal} 
+        onSuccess={handleImportSuccess} 
+      />
 
       {isCreating && (
         <div className="bg-white shadow-md rounded-lg p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4">Create New Menu</h2>
           <form onSubmit={handleCreateMenu}>
             <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="menuName">
-                Menu Name
+              <label htmlFor="menuName" className="block text-sm font-medium text-gray-700 mb-1">
+                Menu Name *
               </label>
               <input
-                id="menuName"
                 type="text"
+                id="menuName"
                 value={newMenuName}
                 onChange={(e) => setNewMenuName(e.target.value)}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                placeholder="Enter menu name"
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="Enter menu name"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="menuDescription">
+              <label htmlFor="menuDescription" className="block text-sm font-medium text-gray-700 mb-1">
                 Description (optional)
               </label>
               <textarea
                 id="menuDescription"
                 value={newMenuDescription}
                 onChange={(e) => setNewMenuDescription(e.target.value)}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                placeholder="Enter menu description"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="Enter a description for your menu"
                 rows={3}
               />
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setIsCreating(false)}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
+                onClick={toggleCreateForm}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded"
+                disabled={!newMenuName.trim() || isCreating}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
               >
-                Create Menu
+                {isCreating ? 'Creating...' : 'Create Menu'}
               </button>
             </div>
           </form>
@@ -150,51 +175,67 @@ const MenusPage = () => {
           {menus.map((menuData: any) => {
             const menu = assertMenu(menuData);
             return (
-              <div key={menu.id} className="bg-white shadow-md rounded-lg overflow-hidden">
+              <div key={menu.id} className="bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300">
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold mb-2">{menu.name}</h2>
-                  {menu.description && <p className="text-gray-600 mb-4">{menu.description}</p>}
-                  <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                    <span>Created {formatDistance(new Date(menu.createdAt), new Date(), { addSuffix: true })}</span>
-                    <span className={`px-2 py-1 rounded ${menu.isPublished ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {menu.isPublished ? 'Published' : 'Draft'}
-                    </span>
+                  <div className="flex justify-between items-start">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-2">{menu.name}</h2>
+                    {menu.isPublished && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Published
+                      </span>
+                    )}
                   </div>
-                  <div className="flex justify-between">
+                  {menu.description && (
+                    <p className="text-gray-600 mb-4 line-clamp-2">{menu.description}</p>
+                  )}
+                  <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
+                    <div>
+                      <span>{menu.sections?.length || 0} sections</span>
+                      <span className="mx-2">•</span>
+                      <span>
+                        {menu.updatedAt 
+                          ? `Updated ${formatDistance(new Date(menu.updatedAt), new Date(), { addSuffix: true })}`
+                          : `Created ${formatDistance(new Date(menu.createdAt), new Date(), { addSuffix: true })}`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
                     <Link
                       to={`/menus/${menu.id}`}
-                      className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded"
+                      className="flex-1 inline-flex justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700 hover:shadow-md transition-all duration-200"
                     >
                       Edit Menu
                     </Link>
                     <button
                       onClick={() => handleDeleteMenu(menu.id)}
-                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
                     >
-                      Delete
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
                     </button>
                   </div>
-                  {menu.isPublished && (
-                    <div className="mt-4">
-                      <a
-                        href={`/menu/${menu.publicUrl}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary-dark underline"
-                      >
-                        View Public Menu
-                      </a>
-                    </div>
-                  )}
                 </div>
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="bg-gray-100 p-8 rounded-lg text-center">
-          <h2 className="text-xl font-semibold mb-2">No menus yet</h2>
-          <p className="text-gray-600 mb-4">Create your first menu to get started!</p>
+        <div className="bg-white shadow-md rounded-lg p-8 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <h2 className="text-xl font-semibold mb-2 text-gray-700">No menus yet</h2>
+          <p className="text-gray-500 mb-4">Create your first menu to get started.</p>
+          <button
+            onClick={toggleCreateForm}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700 hover:shadow-md transition-all duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Your First Menu
+          </button>
         </div>
       )}
     </div>

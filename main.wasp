@@ -27,6 +27,8 @@ app OpenSaaS {
     // via the Cookie Consent component after the user clicks the "Accept" cookies button.
     "<script defer data-domain='<your-site-id>' src='https://plausible.io/js/script.js'></script>",  // for production
     "<script defer data-domain='<your-site-id>' src='https://plausible.io/js/script.local.js'></script>",  // for development
+    // Font Awesome
+    "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css' />",
   ],
 
   // 🔐 Auth out of the box! https://wasp.sh/docs/auth/overview
@@ -440,5 +442,10 @@ action reorderMenuItems {
 query getMenuItemImageUploadUrl {
   fn: import { getMenuItemImageUploadUrl } from "@src/menu-creator/operations",
   entities: [User, Menu, MenuSection, MenuItem]
+}
+
+action importMenuFromCsv {
+  fn: import { importMenuFromCsv } from "@src/menu-creator/operations.js",
+  entities: [Menu, MenuSection, MenuItem, DietaryTag, Allergen]
 }
 //#endregion

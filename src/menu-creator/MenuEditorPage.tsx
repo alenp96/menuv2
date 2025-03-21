@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useAction } from 'wasp/client/operations';
 import { getMenuById, publishMenu } from 'wasp/client/operations';
@@ -31,21 +31,20 @@ const MenuEditorPage = () => {
   const { handleNavigateBack } = useNavigationBlocker(hasUnsavedChanges);
   
   // Handlers
-  const handleMenuUpdated = () => {
+  const handleMenuUpdated = useCallback(() => {
     setHasUnsavedChanges(false);
-    // Force a full refetch to get the latest data
     refetch();
-  };
+  }, [refetch]);
   
-  const handleSectionsUpdated = () => {
+  const handleSectionsUpdated = useCallback(() => {
     refetch();
-  };
+  }, [refetch]);
   
-  const openPreview = () => {
+  const openPreview = useCallback(() => {
     setShowPreviewModal(true);
-  };
+  }, []);
   
-  const handlePublishMenu = async () => {
+  const handlePublishMenu = useCallback(async () => {
     setIsPublishing(true);
     try {
       await publishMenuFn({ menuId });
@@ -57,7 +56,7 @@ const MenuEditorPage = () => {
       setIsPublishing(false);
       setShowPreviewModal(false);
     }
-  };
+  }, [menuId, publishMenuFn, refetch]);
   
   if (isLoading) {
     return (
@@ -180,7 +179,7 @@ const MenuEditorPage = () => {
           {/* Menu Sections */}
           <MenuSectionsList 
             menu={menu} 
-            onSectionsUpdated={handleSectionsUpdated} 
+            onMenuUpdated={handleMenuUpdated} 
           />
           
           {/* Public URL (if published) */}

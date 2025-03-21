@@ -5,6 +5,7 @@ import { MenuItem as MenuItemType, Menu, assertMenuItem, DietaryTag, Allergen, f
 import { MenuItemImageUpload } from './MenuItemImageUpload';
 import TagSelector from './TagSelector';
 import TagDisplay from './TagDisplay';
+import IconSelector from './IconSelector';
 import { PREDEFINED_DIETARY_TAGS } from '../constants/dietaryTags';
 import { PREDEFINED_ALLERGENS } from '../constants/allergens';
 
@@ -19,6 +20,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
   const [name, setName] = useState(item.name);
   const [description, setDescription] = useState(item.description || '');
   const [price, setPrice] = useState(item.price.toString());
+  const [icon, setIcon] = useState<string | null>(item.icon);
   const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>(item.dietaryTags || []);
   const [allergens, setAllergens] = useState<Allergen[]>(item.allergens || []);
 
@@ -39,6 +41,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
         description: description || '',
         price: numericPrice,
         imageUrl: item.imageUrl || undefined,
+        icon: icon || undefined,
         dietaryTags: dietaryTags,
         allergens: allergens
       });
@@ -109,6 +112,24 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <IconSelector
+                selectedIcon={icon}
+                onIconSelect={setIcon}
+              />
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700">
+                  Item Image
+                </label>
+                <MenuItemImageUpload 
+                  itemId={item.id} 
+                  currentImageUrl={item.imageUrl} 
+                  onImageUploaded={onItemUpdated}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TagSelector
                 title="Dietary Tags"
                 description="Select dietary preferences for this item"
@@ -123,17 +144,6 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
                 availableTags={PREDEFINED_ALLERGENS}
                 selectedTags={allergens}
                 onTagsChange={setAllergens}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-xs font-medium text-gray-700">
-                Item Image
-              </label>
-              <MenuItemImageUpload 
-                itemId={item.id} 
-                currentImageUrl={item.imageUrl} 
-                onImageUploaded={onItemUpdated}
               />
             </div>
             
@@ -162,18 +172,22 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
         </form>
       ) : (
         <div className="flex items-start space-x-3">
-          {typedItem.imageUrl && (
-            <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
-              <img 
-                src={typedItem.imageUrl} 
-                alt={typedItem.name} 
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  const imgElement = e.currentTarget;
-                  imgElement.src = 'https://via.placeholder.com/60x60?text=NA';
-                  imgElement.style.objectFit = 'contain';
-                }}
-              />
+          {(typedItem.icon || typedItem.imageUrl) && (
+            <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
+              {typedItem.icon ? (
+                <i className={`fas ${typedItem.icon} text-2xl text-gray-600`}></i>
+              ) : typedItem.imageUrl ? (
+                <img 
+                  src={typedItem.imageUrl} 
+                  alt={typedItem.name} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const imgElement = e.currentTarget;
+                    imgElement.src = 'https://via.placeholder.com/60x60?text=NA';
+                    imgElement.style.objectFit = 'contain';
+                  }}
+                />
+              ) : null}
             </div>
           )}
           <div className="flex-1">

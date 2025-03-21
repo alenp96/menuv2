@@ -4,6 +4,7 @@ import { createMenuItem, getMenuById } from 'wasp/client/operations';
 import { NewItemImageUpload } from './NewItemImageUpload';
 import { assertMenu, assertMenuSection, DietaryTag, Allergen } from '../types';
 import TagSelector from './TagSelector';
+import IconSelector from './IconSelector';
 import { PREDEFINED_DIETARY_TAGS } from '../constants/dietaryTags';
 import { PREDEFINED_ALLERGENS } from '../constants/allergens';
 
@@ -19,6 +20,7 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
   const [price, setPrice] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [icon, setIcon] = useState<string | null>(null);
   const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>([]);
   const [allergens, setAllergens] = useState<Allergen[]>([]);
 
@@ -56,6 +58,7 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
         price: numericPrice,
         position,
         imageUrl: imageUrl || undefined,
+        icon: icon || undefined,
         dietaryTags: dietaryTags.length > 0 ? dietaryTags : undefined,
         allergens: allergens.length > 0 ? allergens : undefined
       });
@@ -65,6 +68,7 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
       setPrice('');
       setImageUrl(null);
       setImageFile(null);
+      setIcon(null);
       setDietaryTags([]);
       setAllergens([]);
       onItemAdded();
@@ -131,6 +135,18 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-3 text-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500 transition-colors duration-200"
           />
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <IconSelector
+            selectedIcon={icon}
+            onIconSelect={setIcon}
+          />
+          
+          <NewItemImageUpload
+            onImageSelected={(url: string) => setImageUrl(url)}
+            onFileSelected={(file: File) => setImageFile(file)}
+          />
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <TagSelector
@@ -149,11 +165,6 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
             onTagsChange={setAllergens}
           />
         </div>
-        
-        <NewItemImageUpload
-          onImageSelected={(url: string) => setImageUrl(url)}
-          onFileSelected={(file: File) => setImageFile(file)}
-        />
         
         <div className="flex justify-end space-x-2">
           <button

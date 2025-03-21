@@ -58,6 +58,7 @@ export type MenuItem = {
   price: number;
   position: number;
   imageUrl: string | null;
+  icon: string | null;
   sectionId: string;
   dietaryTags?: DietaryTag[];
   allergens?: Allergen[];
@@ -103,6 +104,18 @@ export type CreateMenuItem<Args, Result> = (args: Args, context: any) => Promise
 export type UpdateMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type DeleteMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type GetMenuItemImageUploadUrl<Args, Result> = (args: Args, context: any) => Promise<Result>;
+export type ImportMenuFromCsv<Args, Result> = (args: Args, context: any) => Promise<Result>;
+
+// CSV import types
+export interface CsvMenuItem {
+  section_name: string;
+  item_name: string;
+  price: number | string;
+  description: string | null | undefined;
+  dietary_tags: string | null | undefined;
+  allergens: string | null | undefined;
+  icon: string | null | undefined;
+}
 
 // Helper function to format price according to currency
 export function formatPrice(price: number, menu: Menu): string {
