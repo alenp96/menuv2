@@ -179,8 +179,6 @@ export const getPublicMenu: GetPublicMenu<{ publicUrl: string; template?: string
 
 // Actions
 export const createMenu: CreateMenu<{ name: string; description?: string }, Menu> = async ({ name, description }, context) => {
-  console.log('Create menu called with:', { name, description });
-  
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to create a menu');
   }
@@ -188,7 +186,6 @@ export const createMenu: CreateMenu<{ name: string; description?: string }, Menu
   try {
     // Generate a unique URL for the menu
     const publicUrl = nanoid(10);
-    console.log('Generated publicUrl:', publicUrl);
 
     // Create the menu WITHOUT the template field
     const menuData = {
@@ -201,14 +198,14 @@ export const createMenu: CreateMenu<{ name: string; description?: string }, Menu
       user: { connect: { id: context.user.id } }
     };
     
-    // Explicitly don't include the template field here
-    console.log('Creating menu with data:', menuData);
-    
+    // Create the menu in a single transaction to ensure consistency
     const menu = await context.entities.Menu.create({
       data: menuData
     });
 
-    console.log('Menu created:', menu);
+    if (!menu || !menu.id) {
+      throw new Error('Failed to create menu: Database operation did not return a valid menu');
+    }
 
     // Add the template field programmatically and empty sections array
     return {
@@ -218,7 +215,10 @@ export const createMenu: CreateMenu<{ name: string; description?: string }, Menu
     };
   } catch (error) {
     console.error('Error creating menu:', error);
-    throw error;
+    if (error instanceof Error) {
+      throw new HttpError(500, `Failed to create menu: ${error.message}`);
+    }
+    throw new HttpError(500, 'Failed to create menu due to an unknown error');
   }
 };
 
@@ -915,8 +915,6 @@ export const importMenuFromCsv = async ({ csvData }: { csvData: CsvMenuItem[] },
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to import a menu');
   }
-
-  console.log('Starting CSV import with data count:', csvData.length);
   
   if (!Array.isArray(csvData) || csvData.length === 0) {
     throw new HttpError(400, 'Invalid CSV data: expecting a non-empty array');
@@ -931,8 +929,6 @@ export const importMenuFromCsv = async ({ csvData }: { csvData: CsvMenuItem[] },
     if (csvData.length > 0 && csvData[0].section_name) {
       menuName = `${csvData[0].section_name} Menu`;
     }
-    
-    console.log(`Creating menu "${menuName}" with publicUrl: ${publicUrl}`);
 
     // Create the menu
     const menu = await context.entities.Menu.create({
@@ -946,12 +942,10 @@ export const importMenuFromCsv = async ({ csvData }: { csvData: CsvMenuItem[] },
         user: { connect: { id: context.user.id } }
       }
     });
-    
-    console.log(`Menu created with ID: ${menu.id}`);
 
     // Group items by section
     const sectionMap = new Map<string, CsvMenuItem[]>();
-    csvData.forEach((row: CsvMenuItem, index: number) => {
+    csvData.forEach((row: CsvMenuItem) => {
       // Ensure section_name is a string
       const sectionName = String(row.section_name).trim();
       
@@ -960,21 +954,15 @@ export const importMenuFromCsv = async ({ csvData }: { csvData: CsvMenuItem[] },
       
       // Ensure price is a number
       let price: number;
-      try {
-        if (typeof row.price === 'number') {
-          price = row.price;
-        } else {
-          // Try to parse the price, removing any non-numeric chars except decimal point
-          const cleanedPrice = String(row.price).replace(/[^\d.]/g, '');
-          price = parseFloat(cleanedPrice);
-          if (isNaN(price)) {
-            console.error(`Row ${index} has invalid price after cleaning:`, row.price);
-            throw new HttpError(400, `Row ${index + 1} has an invalid price value: ${row.price}`);
-          }
+      if (typeof row.price === 'number') {
+        price = row.price;
+      } else {
+        // Try to parse the price, removing any non-numeric chars except decimal point
+        const cleanedPrice = String(row.price).replace(/[^\d.]/g, '');
+        price = parseFloat(cleanedPrice);
+        if (isNaN(price)) {
+          throw new HttpError(400, `Invalid price value: ${row.price}`);
         }
-      } catch (error) {
-        console.error(`Row ${index} has invalid price:`, row.price);
-        throw new HttpError(400, `Row ${index + 1} has an invalid price value: ${row.price}`);
       }
       
       if (!sectionMap.has(sectionName)) {
@@ -994,121 +982,93 @@ export const importMenuFromCsv = async ({ csvData }: { csvData: CsvMenuItem[] },
       
       sectionMap.get(sectionName)?.push(sanitizedRow);
     });
-    
-    console.log(`Grouped into ${sectionMap.size} sections`);
 
     // Create sections and items
     let sectionPosition = 0;
-    for (const [sectionName, items] of sectionMap.entries()) {
-      console.log(`Creating section "${sectionName}" with ${items.length} items`);
+    const createSectionPromises = Array.from(sectionMap.entries()).map(async ([sectionName, items]) => {
+      // Create the section
+      const section = await context.entities.MenuSection.create({
+        data: {
+          name: sectionName,
+          description: null,
+          position: sectionPosition++,
+          menu: { connect: { id: menu.id } }
+        }
+      });
       
-      try {
-        const section = await context.entities.MenuSection.create({
-          data: {
-            name: sectionName,
-            description: null,
-            position: sectionPosition++,
-            menu: { connect: { id: menu.id } }
+      // Create items for this section
+      let itemPosition = 0;
+      const createItemPromises = items.map(async (item) => {
+        // Process dietary tags if present
+        const dietaryTagsArray = item.dietary_tags ? 
+          item.dietary_tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : 
+          [];
+        
+        // Process allergens if present
+        const allergensArray = item.allergens ? 
+          item.allergens.split(',').map((allergen: string) => allergen.trim()).filter(Boolean) : 
+          [];
+
+        // Find or create dietary tags
+        const dietaryTagPromises = dietaryTagsArray.map(async (tagName: string) => {
+          const existingTag = await context.entities.DietaryTag.findUnique({
+            where: { name: tagName }
+          });
+
+          if (existingTag) {
+            return { id: existingTag.id };
+          } else {
+            const newTag = await context.entities.DietaryTag.create({
+              data: { name: tagName }
+            });
+            return { id: newTag.id };
           }
         });
-        
-        console.log(`Section created with ID: ${section.id}`);
 
-        // Add items to the section
-        let itemPosition = 0;
-        for (const item of items) {
-          console.log(`Adding item "${item.item_name}" to section "${sectionName}"`);
-          
-          try {
-            // Process dietary tags if present
-            const dietaryTagsArray = item.dietary_tags && item.dietary_tags !== '' && item.dietary_tags !== null ? 
-              item.dietary_tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : 
-              [];
-            
-            // Process allergens if present
-            const allergensArray = item.allergens && item.allergens !== '' && item.allergens !== null ? 
-              item.allergens.split(',').map((allergen: string) => allergen.trim()).filter(Boolean) : 
-              [];
+        // Find or create allergens
+        const allergenPromises = allergensArray.map(async (allergenName: string) => {
+          const existingAllergen = await context.entities.Allergen.findUnique({
+            where: { name: allergenName }
+          });
 
-            console.log(`Item has ${dietaryTagsArray.length} dietary tags and ${allergensArray.length} allergens`);
-
-            // Create or connect dietary tags
-            const dietaryTags = await Promise.all(
-              dietaryTagsArray.map(async (tagName: string) => {
-                const existingTag = await context.entities.DietaryTag.findUnique({
-                  where: { name: tagName }
-                });
-
-                if (existingTag) {
-                  return { id: existingTag.id };
-                } else {
-                  const newTag = await context.entities.DietaryTag.create({
-                    data: { name: tagName }
-                  });
-                  return { id: newTag.id };
-                }
-              })
-            );
-
-            // Create or connect allergens
-            const allergens = await Promise.all(
-              allergensArray.map(async (allergenName: string) => {
-                const existingAllergen = await context.entities.Allergen.findUnique({
-                  where: { name: allergenName }
-                });
-
-                if (existingAllergen) {
-                  return { id: existingAllergen.id };
-                } else {
-                  const newAllergen = await context.entities.Allergen.create({
-                    data: { name: allergenName }
-                  });
-                  return { id: newAllergen.id };
-                }
-              })
-            );
-
-            // Ensure price is a valid number before creating the menu item
-            const price = typeof item.price === 'number' 
-              ? item.price 
-              : parseFloat(String(item.price));
-            
-            if (isNaN(price)) {
-              throw new Error(`Invalid price value: ${item.price}`);
-            }
-            
-            console.log(`Creating menu item "${item.item_name}" with price ${price}`);
-            
-            const menuItem = await context.entities.MenuItem.create({
-              data: {
-                name: item.item_name,
-                description: item.description || null,
-                price: price,
-                position: itemPosition++,
-                imageUrl: null,
-                section: { connect: { id: section.id } },
-                dietaryTags: {
-                  connect: dietaryTags
-                },
-                allergens: {
-                  connect: allergens
-                }
-              }
+          if (existingAllergen) {
+            return { id: existingAllergen.id };
+          } else {
+            const newAllergen = await context.entities.Allergen.create({
+              data: { name: allergenName }
             });
-            
-            console.log(`Menu item created with ID: ${menuItem.id}`);
-          } catch (itemError) {
-            console.error(`Error creating menu item "${item.item_name}":`, itemError);
-            throw itemError;
+            return { id: newAllergen.id };
           }
-        }
-      } catch (sectionError) {
-        console.error(`Error creating section "${sectionName}":`, sectionError);
-        throw sectionError;
-      }
-    }
+        });
 
-    console.log(`Menu import successful, fetching complete menu...`);
+        // Wait for all tags and allergens to be processed
+        const [dietaryTags, allergens] = await Promise.all([
+          Promise.all(dietaryTagPromises),
+          Promise.all(allergenPromises)
+        ]);
+
+        // Create the menu item
+        return context.entities.MenuItem.create({
+          data: {
+            name: item.item_name,
+            description: item.description || null,
+            price: item.price,
+            position: itemPosition++,
+            imageUrl: null,
+            section: { connect: { id: section.id } },
+            dietaryTags: { connect: dietaryTags },
+            allergens: { connect: allergens }
+          }
+        });
+      });
+
+      // Wait for all items to be created
+      await Promise.all(createItemPromises);
+      return section;
+    });
+
+    // Wait for all sections and their items to be created
+    await Promise.all(createSectionPromises);
     
     // Fetch the full menu with all relations
     const importedMenu = await context.entities.Menu.findUnique({
@@ -1132,8 +1092,6 @@ export const importMenuFromCsv = async ({ csvData }: { csvData: CsvMenuItem[] },
     if (!importedMenu) {
       throw new Error(`Failed to fetch imported menu with ID: ${menu.id}`);
     }
-    
-    console.log(`Import complete. Menu has ${importedMenu.sections.length} sections`);
 
     // Add the template field programmatically 
     return {

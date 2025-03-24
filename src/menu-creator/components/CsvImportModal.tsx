@@ -325,17 +325,18 @@ const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose, onSucc
       // Use our parseWithFallbacks function for full parsing
       const result = await parseWithFallbacks(file);
       
-      console.log('CSV data parsed successfully:', result);
-      
       // Log the first row to help debug
       if (result && result.length > 0) {
         console.log('First row sample:', result[0]);
       }
       
       const importedMenu = await importMenuAction({ csvData: result });
-      console.log('Menu imported successfully:', importedMenu);
       
+      // Make sure to reset before closing
       setIsLoading(false);
+      resetForm();
+      
+      // Notify parent
       onSuccess();
       onClose();
     } catch (error: any) {
