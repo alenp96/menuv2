@@ -21,11 +21,54 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
   const [description, setDescription] = useState(item.description || '');
   const [price, setPrice] = useState(item.price.toString());
   const [icon, setIcon] = useState<string | null>(item.icon);
+  const [videoUrl, setVideoUrl] = useState<string | null>(item.videoUrl || null);
   const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>(item.dietaryTags || []);
   const [allergens, setAllergens] = useState<Allergen[]>(item.allergens || []);
 
   const updateMenuItemFn = useAction(updateMenuItem);
   const deleteMenuItemFn = useAction(deleteMenuItem);
+
+  // Helper function to validate video URL and identify its type
+  const validateVideoUrl = (url: string | null): { isValid: boolean, type: string, message: string } => {
+    if (!url) return { isValid: false, type: 'none', message: '' };
+    
+    // YouTube
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    if (youtubeRegex.test(url)) {
+      return { 
+        isValid: true, 
+        type: 'youtube', 
+        message: 'YouTube video detected - will be embedded in the menu' 
+      };
+    }
+    
+    // Vimeo
+    const vimeoRegex = /(?:vimeo\.com\/(?:video\/)?)([0-9]+)/i;
+    if (vimeoRegex.test(url)) {
+      return { 
+        isValid: true, 
+        type: 'vimeo', 
+        message: 'Vimeo video detected - will be embedded in the menu' 
+      };
+    }
+    
+    // Direct file URL (mp4, webm, ogg)
+    const fileRegex = /\.(mp4|webm|ogg)$/i;
+    if (fileRegex.test(url)) {
+      return { 
+        isValid: true, 
+        type: 'direct', 
+        message: 'Valid video file format detected' 
+      };
+    }
+    
+    // Unknown format
+    return { 
+      isValid: false, 
+      type: 'unknown', 
+      message: 'Warning: URL format not recognized. Provide a YouTube, Vimeo, or direct video file URL' 
+    };
+  };
 
   const handleUpdateItem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +84,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
         description: description || '',
         price: numericPrice,
         imageUrl: item.imageUrl || undefined,
+        videoUrl: videoUrl || undefined,
         icon: icon || undefined,
         dietaryTags: dietaryTags,
         allergens: allergens
@@ -129,6 +173,37 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
               </div>
             </div>
             
+            <div>
+              <label htmlFor={`editingItemVideoUrl-${item.id}`} className="block text-xs font-medium text-gray-700">
+                Video URL
+              </label>
+              <input
+                type="url"
+                id={`editingItemVideoUrl-${item.id}`}
+                value={videoUrl || ''}
+                onChange={(e) => setVideoUrl(e.target.value || null)}
+                placeholder="https://example.com/video.mp4 or YouTube/Vimeo URL"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500 transition-colors duration-200"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Provide a direct link to a video file (mp4, webm, ogg), YouTube, or Vimeo URL. 
+                The video should be publicly accessible.
+              </p>
+              {videoUrl && (() => {
+                const validation = validateVideoUrl(videoUrl);
+                return (
+                  <div className="mt-2 text-xs flex items-center">
+                    <span className={`mr-2 inline-block w-2 h-2 rounded-full ${
+                      validation.isValid ? 'bg-green-500' : 'bg-yellow-500'
+                    }`}></span>
+                    <span className={validation.isValid ? 'text-green-600' : 'text-yellow-600'}>
+                      {validation.message}
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TagSelector
                 title="Dietary Tags"
@@ -173,20 +248,29 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, menu, onItemUpdated }) => {
       ) : (
         <div className="flex items-start space-x-3">
           {(typedItem.icon || typedItem.imageUrl) && (
-            <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center relative">
               {typedItem.icon ? (
                 <i className={`fas ${typedItem.icon} text-2xl text-gray-600`}></i>
               ) : typedItem.imageUrl ? (
-                <img 
-                  src={typedItem.imageUrl} 
-                  alt={typedItem.name} 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const imgElement = e.currentTarget;
-                    imgElement.src = 'https://via.placeholder.com/60x60?text=NA';
-                    imgElement.style.objectFit = 'contain';
-                  }}
-                />
+                <>
+                  <img 
+                    src={typedItem.imageUrl} 
+                    alt={typedItem.name} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const imgElement = e.currentTarget;
+                      imgElement.src = 'https://via.placeholder.com/60x60?text=NA';
+                      imgElement.style.objectFit = 'contain';
+                    }}
+                  />
+                  {typedItem.videoUrl && (
+                    <div className="absolute top-0 right-0 bg-amber-500 text-white rounded-bl-md p-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                </>
               ) : null}
             </div>
           )}

@@ -8,6 +8,12 @@ interface NoImagesMenuItemProps {
 }
 
 const NoImagesMenuItem: React.FC<NoImagesMenuItemProps> = ({ item, menu, onClick }) => {
+  // Add handler for video icon click
+  const handleVideoIconClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the parent onClick from firing
+    onClick(); // Open the modal with this item
+  };
+
   return (
     <div 
       className="bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer mb-4"
@@ -26,9 +32,23 @@ const NoImagesMenuItem: React.FC<NoImagesMenuItemProps> = ({ item, menu, onClick
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-gray-900 font-medium text-lg truncate pr-4">
-                  {item.name}
-                </h3>
+                <div className="flex items-center">
+                  <h3 className="text-gray-900 font-medium text-lg truncate pr-2">
+                    {item.name}
+                  </h3>
+                  {item.videoUrl && (
+                    <span 
+                      className="ml-1 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center shadow-sm cursor-pointer hover:bg-amber-600 transition-colors group"
+                      onClick={handleVideoIconClick}
+                      title="Play video"
+                    >
+                      <svg className="w-3 h-3 mr-0.5 group-hover:animate-pulse" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                      </svg>
+                      Video
+                    </span>
+                  )}
+                </div>
                 {item.description && (
                   <p className="text-gray-600 text-sm mt-1">{item.description}</p>
                 )}

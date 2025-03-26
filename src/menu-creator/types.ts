@@ -58,6 +58,7 @@ export type MenuItem = {
   price: number;
   position: number;
   imageUrl: string | null;
+  videoUrl: string | null;
   icon: string | null;
   sectionId: string;
   dietaryTags?: DietaryTag[];

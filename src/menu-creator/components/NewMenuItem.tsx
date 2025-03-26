@@ -20,6 +20,7 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
   const [price, setPrice] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [icon, setIcon] = useState<string | null>(null);
   const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>([]);
   const [allergens, setAllergens] = useState<Allergen[]>([]);
@@ -58,6 +59,7 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
         price: numericPrice,
         position,
         imageUrl: imageUrl || undefined,
+        videoUrl: videoUrl || undefined,
         icon: icon || undefined,
         dietaryTags: dietaryTags.length > 0 ? dietaryTags : undefined,
         allergens: allergens.length > 0 ? allergens : undefined
@@ -68,6 +70,7 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
       setPrice('');
       setImageUrl(null);
       setImageFile(null);
+      setVideoUrl(null);
       setIcon(null);
       setDietaryTags([]);
       setAllergens([]);
@@ -134,6 +137,23 @@ const NewMenuItem: React.FC<NewMenuItemProps> = ({ sectionId, onItemAdded, onCan
             rows={2}
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-3 text-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500 transition-colors duration-200"
           />
+        </div>
+
+        <div>
+          <label htmlFor="newItemVideoUrl" className="block text-xs font-medium text-gray-700">
+            Video URL (Optional)
+          </label>
+          <input
+            type="url"
+            id="newItemVideoUrl"
+            value={videoUrl || ''}
+            onChange={(e) => setVideoUrl(e.target.value || null)}
+            placeholder="https://example.com/video.mp4 or YouTube/Vimeo URL"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-3 text-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500 transition-colors duration-200"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Provide a direct link to a video file (mp4, webm, ogg), YouTube, or Vimeo URL.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

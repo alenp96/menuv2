@@ -94,6 +94,8 @@ export const getMenuById: GetMenuById<{ menuId: string; template?: string }, Men
               price: true,
               position: true,
               imageUrl: true,
+              videoUrl: true,
+              icon: true,
               sectionId: true,
               dietaryTags: true,
               allergens: true
@@ -155,6 +157,7 @@ export const getPublicMenu: GetPublicMenu<{ publicUrl: string; template?: string
               price: true,
               position: true,
               imageUrl: true,
+              videoUrl: true,
               icon: true,
               sectionId: true,
               dietaryTags: true,
@@ -515,6 +518,7 @@ export const createMenuItem: CreateMenuItem<
     price?: number; 
     position: number; 
     imageUrl?: string;
+    videoUrl?: string;
     icon?: string;
     dietaryTags?: { id: string; name: string; icon?: string | null }[];
     allergens?: { id: string; name: string; icon?: string | null }[];
@@ -527,6 +531,7 @@ export const createMenuItem: CreateMenuItem<
   price, 
   position, 
   imageUrl,
+  videoUrl,
   icon,
   dietaryTags = [],
   allergens = []
@@ -557,6 +562,7 @@ export const createMenuItem: CreateMenuItem<
       price: price || 0,
       position,
       imageUrl,
+      videoUrl,
       icon,
       section: { connect: { id: sectionId } },
       dietaryTags: {
@@ -579,6 +585,7 @@ export const updateMenuItem: UpdateMenuItem<
     price?: number; 
     position?: number; 
     imageUrl?: string;
+    videoUrl?: string;
     icon?: string;
     dietaryTags?: { id: string; name: string; icon?: string | null }[];
     allergens?: { id: string; name: string; icon?: string | null }[];
@@ -591,6 +598,7 @@ export const updateMenuItem: UpdateMenuItem<
   price, 
   position, 
   imageUrl,
+  videoUrl,
   icon,
   dietaryTags,
   allergens
@@ -622,6 +630,7 @@ export const updateMenuItem: UpdateMenuItem<
       price,
       position,
       imageUrl,
+      videoUrl,
       icon,
       dietaryTags: dietaryTags ? {
         set: dietaryTags.map(tag => ({ id: tag.id }))

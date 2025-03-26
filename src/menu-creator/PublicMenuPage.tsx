@@ -47,6 +47,10 @@ const PublicMenuPage = () => {
   const [availableDietaryTags, setAvailableDietaryTags] = useState<DietaryTag[]>([]);
   const [availableAllergens, setAvailableAllergens] = useState<Allergen[]>([]);
   
+  // Add state to track whether to show video or image when both are available
+  const [showVideo, setShowVideo] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  
   useEffect(() => {
     if (menu && menu.sections && menu.sections.length > 0) {
       setActiveSection(menu.sections[0].id);
@@ -130,6 +134,53 @@ const PublicMenuPage = () => {
 
   const openItemModal = (item: MenuItem) => {
     setSelectedItem(item);
+  };
+  
+  // Reset showVideo state when modal is closed
+  useEffect(() => {
+    if (!selectedItem) {
+      setShowVideo(false);
+    }
+  }, [selectedItem]);
+  
+  // Helper function to determine if a URL is a YouTube, Vimeo, or other platform video
+  const getVideoEmbedUrl = (url: string | null): { type: string, embedUrl: string } | null => {
+    if (!url) return null;
+    
+    // YouTube
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const youtubeMatch = url.match(youtubeRegex);
+    if (youtubeMatch && youtubeMatch[1]) {
+      return {
+        type: 'youtube',
+        embedUrl: `https://www.youtube.com/embed/${youtubeMatch[1]}`
+      };
+    }
+    
+    // Vimeo
+    const vimeoRegex = /(?:vimeo\.com\/(?:video\/)?)([0-9]+)/i;
+    const vimeoMatch = url.match(vimeoRegex);
+    if (vimeoMatch && vimeoMatch[1]) {
+      return {
+        type: 'vimeo',
+        embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}`
+      };
+    }
+    
+    // Direct file URL (mp4, webm, ogg)
+    const fileRegex = /\.(mp4|webm|ogg)$/i;
+    if (fileRegex.test(url)) {
+      return {
+        type: 'direct',
+        embedUrl: url
+      };
+    }
+    
+    // Unknown format
+    return {
+      type: 'unknown',
+      embedUrl: url
+    };
   };
   
   // Filter menu items based on search term and selected filters
@@ -400,13 +451,54 @@ const PublicMenuPage = () => {
         }
         .modal-image-container {
           position: relative;
-          width: 85%;
-          max-width: 400px;
+          width: 100%;
+          max-width: 100%;
           margin: 0 auto;
-          padding-bottom: 113.33%; /* Slightly shorter 4:3 aspect ratio */
+          padding-bottom: 133.33%; /* 3:4 aspect ratio (4/3 × 100 = 133.33%) */
+          height: 0;
           overflow: hidden;
+          background-color: #f8f8f8;
         }
         .modal-image {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .modal-media-container {
+          position: relative;
+          width: 100%;
+          overflow: hidden;
+          background-color: #000;
+        }
+        .modal-video-container {
+          position: relative;
+          width: 100%;
+          background-color: #000;
+          overflow: hidden;
+          border-radius: 0;
+        }
+        .modal-video-container video {
+          width: 100%;
+          display: block;
+          object-fit: contain;
+        }
+        .aspect-w-16 {
+          position: relative;
+          padding-bottom: 56.25%; /* 16:9 aspect ratio */
+          height: 0;
+          overflow: hidden;
+        }
+        /* Add a new class for the 3:4 aspect ratio container */
+        .aspect-3-4 {
+          position: relative;
+          padding-bottom: 133.33%; /* 3:4 aspect ratio */
+          height: 0;
+          overflow: hidden;
+        }
+        .aspect-3-4 img {
           position: absolute;
           top: 0;
           left: 0;
@@ -745,15 +837,164 @@ const PublicMenuPage = () => {
             className="modal-content overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {selectedItem.imageUrl ? (
-              <div className="modal-image-container">
+            {/* Media Section with Toggling Between Image and Video */}
+            {selectedItem.videoUrl && selectedItem.imageUrl ? (
+              <div className="modal-media-container relative">
+                {!showVideo ? (
+                  <div className="aspect-3-4">
+                    <img 
+                      src={selectedItem.imageUrl} 
+                      alt={selectedItem.name} 
+                      onError={(e) => {
+                        const imgElement = e.currentTarget;
+                        imgElement.src = 'https://via.placeholder.com/600x800?text=Image+Not+Available';
+                        imgElement.style.objectFit = 'contain';
+                      }}
+                    />
+                    <button 
+                      className="absolute bottom-4 right-4 bg-amber-500 hover:bg-amber-600 text-white py-2 px-4 rounded-lg shadow-md transition-colors flex items-center"
+                      onClick={() => setShowVideo(true)}
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                      </svg>
+                      Watch Video
+                    </button>
+                  </div>
+                ) : (
+                  <div className="modal-video-container relative">
+                    {(() => {
+                      const videoInfo = getVideoEmbedUrl(selectedItem.videoUrl);
+                      
+                      if (videoInfo && (videoInfo.type === 'youtube' || videoInfo.type === 'vimeo')) {
+                        // Embed iframe for YouTube/Vimeo
+                        return (
+                          <>
+                            <div className="aspect-3-4">
+                              <iframe
+                                src={videoInfo.embedUrl}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                className="w-full h-full"
+                                style={{ height: '300px', border: 'none' }}
+                              ></iframe>
+                            </div>
+                            <button 
+                              className="absolute bottom-4 right-4 bg-gray-800 bg-opacity-70 hover:bg-opacity-90 text-white py-2 px-4 rounded-lg shadow-md transition-colors flex items-center"
+                              onClick={() => setShowVideo(false)}
+                            >
+                              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              See Photo
+                            </button>
+                            <div className="absolute top-3 left-3 bg-amber-500 text-white text-xs px-2 py-1 rounded-full shadow-md flex items-center">
+                              <svg className="w-3 h-3 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                              </svg>
+                              See It Made
+                            </div>
+                          </>
+                        );
+                      } else {
+                        // Standard video player for direct files
+                        return (
+                          <>
+                            <video 
+                              className="w-full" 
+                              controls 
+                              poster={selectedItem.imageUrl}
+                              playsInline
+                              preload="auto"
+                            >
+                              <source src={selectedItem.videoUrl} type="video/mp4" />
+                              <source src={selectedItem.videoUrl} type="video/webm" />
+                              <source src={selectedItem.videoUrl} type="video/ogg" />
+                              Your browser does not support the video tag.
+                            </video>
+                            <button 
+                              className="absolute bottom-4 right-4 bg-gray-800 bg-opacity-70 hover:bg-opacity-90 text-white py-2 px-4 rounded-lg shadow-md transition-colors flex items-center"
+                              onClick={() => setShowVideo(false)}
+                            >
+                              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              See Photo
+                            </button>
+                            <div className="absolute top-3 left-3 bg-amber-500 text-white text-xs px-2 py-1 rounded-full shadow-md flex items-center">
+                              <svg className="w-3 h-3 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                              </svg>
+                              See It Made
+                            </div>
+                          </>
+                        );
+                      }
+                    })()}
+                  </div>
+                )}
+              </div>
+            ) : selectedItem.videoUrl ? (
+              <div className="modal-media-container relative">
+                {(() => {
+                  const videoInfo = getVideoEmbedUrl(selectedItem.videoUrl);
+                  
+                  if (videoInfo && (videoInfo.type === 'youtube' || videoInfo.type === 'vimeo')) {
+                    // Embed iframe for YouTube/Vimeo
+                    return (
+                      <>
+                        <div className="aspect-3-4">
+                          <iframe
+                            src={videoInfo.embedUrl}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="w-full h-full"
+                            style={{ height: '300px', border: 'none' }}
+                          ></iframe>
+                        </div>
+                        <div className="absolute top-3 left-3 bg-amber-500 text-white text-xs px-2 py-1 rounded-full shadow-md flex items-center">
+                          <svg className="w-3 h-3 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                          </svg>
+                          See It Made
+                        </div>
+                      </>
+                    );
+                  } else {
+                    // Standard video player for direct files
+                    return (
+                      <>
+                        <video 
+                          className="w-full" 
+                          controls 
+                          poster={selectedItem.imageUrl || undefined}
+                          playsInline
+                          preload="auto"
+                        >
+                          <source src={selectedItem.videoUrl} type="video/mp4" />
+                          <source src={selectedItem.videoUrl} type="video/webm" />
+                          <source src={selectedItem.videoUrl} type="video/ogg" />
+                          Your browser does not support the video tag.
+                        </video>
+                        <div className="absolute top-3 left-3 bg-amber-500 text-white text-xs px-2 py-1 rounded-full shadow-md flex items-center">
+                          <svg className="w-3 h-3 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                          </svg>
+                          See It Made
+                        </div>
+                      </>
+                    );
+                  }
+                })()}
+              </div>
+            ) : selectedItem.imageUrl ? (
+              <div className="aspect-3-4">
                 <img 
                   src={selectedItem.imageUrl} 
                   alt={selectedItem.name} 
-                  className="modal-image"
                   onError={(e) => {
                     const imgElement = e.currentTarget;
-                    imgElement.src = 'https://via.placeholder.com/600x300?text=Image+Not+Available';
+                    imgElement.src = 'https://via.placeholder.com/600x800?text=Image+Not+Available';
                     imgElement.style.objectFit = 'contain';
                   }}
                 />
