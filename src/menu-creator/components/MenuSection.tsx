@@ -11,7 +11,7 @@ import NoImagesMenuItem from './NoImagesMenuItem';
 interface MenuSectionProps {
   section: MenuSectionType;
   menu: Menu;
-  template?: 'default' | 'no-images';
+  template?: 'default' | 'no-images' | 'zvezda';
   onItemClick?: (item: MenuItem) => void;
   onMenuUpdated?: () => void;
   isEditing?: boolean;

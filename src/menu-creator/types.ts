@@ -15,11 +15,12 @@ export const AVAILABLE_CURRENCIES: Currency[] = [
   { code: 'INR', symbol: '₹', position: 'prefix' },
 ];
 
-export type MenuTemplate = 'default' | 'no-images';
+export type MenuTemplate = 'default' | 'no-images' | 'zvezda';
 
 export const AVAILABLE_TEMPLATES = [
   { id: 'default', name: 'Default Template', description: 'Standard menu layout with images' },
-  { id: 'no-images', name: 'No Images', description: 'Clean layout without displaying any item images' }
+  { id: 'no-images', name: 'No Images', description: 'Clean layout without displaying any item images' },
+  { id: 'zvezda', name: 'Zvezda', description: 'Modern layout with star branding and green theme' }
 ];
 
 export type Menu = {
@@ -119,8 +120,13 @@ export interface CsvMenuItem {
 }
 
 // Helper function to format price according to currency
-export function formatPrice(price: number, menu: Menu): string {
+export function formatPrice(price: number, menu?: Menu): string {
   const formattedPrice = price.toFixed(2);
+  
+  if (!menu) {
+    return formattedPrice;
+  }
+  
   return menu.currencyPosition === 'prefix' 
     ? `${menu.currencySymbol}${formattedPrice}`
     : `${formattedPrice}${menu.currencySymbol}`;
