@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from 'wasp/client/operations';
 import { getPublicMenu } from 'wasp/client/operations';
 import { Menu, MenuSection as MenuSectionType, MenuItem, assertMenu, DietaryTag, Allergen, formatPrice } from './types';
-import NoImagesMenuItem from './components/NoImagesMenuItem';
 import MenuSection from './components/MenuSection';
 import MenuNavigation from './components/MenuNavigation';
 
@@ -34,19 +33,11 @@ const PublicMenuPage = () => {
     };
   }, []);
   
-  // Default to 'zvezda' template for this design
+  // Always use default template (the old zvezda template)
   useEffect(() => {
     if (menu) {
-      // Try to get the template from localStorage
-      const savedTemplate = localStorage.getItem(`menu_template_${menu.id}`);
-      if (savedTemplate && (savedTemplate === 'default' || savedTemplate === 'no-images' || savedTemplate === 'zvezda')) {
-        // Update the menu object with the saved template
-        menu.template = savedTemplate;
-      } else {
-        // Set 'zvezda' as the default template
-        menu.template = 'zvezda';
-        localStorage.setItem(`menu_template_${menu.id}`, 'zvezda');
-      }
+      // Set 'default' as the template
+      menu.template = 'default';
       console.log('Using template:', menu.template);
     }
   }, [menu]);
@@ -908,7 +899,7 @@ const PublicMenuPage = () => {
         }
       `}</style>
 
-      {menu && menu.template === 'zvezda' ? (
+      {menu && (
         <>
           {/* Zvezda Header */}
           <header className="zvezda-header">
@@ -1095,65 +1086,6 @@ const PublicMenuPage = () => {
             )}
           </main>
         </>
-      ) : (
-        <>
-          {/* Visible Restaurant Header */}
-          <header className="visible-header w-full text-white">
-            <div className="relative py-6 px-4 flex flex-col items-center justify-center min-h-[150px] md:min-h-[180px]">
-              <div className="z-10 transform transition-all duration-300">
-                <div className="logo-placeholder mb-3 mx-auto">
-                  <svg className="w-10 h-10 text-amber-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                
-                <h1 className="restaurant-title text-center text-3xl md:text-4xl lg:text-5xl mb-5">
-                  {menu.name}
-                </h1>
-                
-                {menu.description && (
-                  <p className="text-center text-white mt-3 max-w-md mx-auto text-sm md:text-base font-light opacity-90">
-                    {menu.description}
-                  </p>
-                )}
-              </div>
-              
-              <div className="header-wave"></div>
-              
-              {/* Decorative elements */}
-              <div className="absolute top-1/3 left-10 w-6 h-6 bg-white opacity-10 rounded-full transform animate-pulse"></div>
-              <div className="absolute top-2/3 right-10 w-4 h-4 bg-white opacity-5 rounded-full transform animate-pulse" style={{ animationDelay: '1s' }}></div>
-              <div className="absolute bottom-1/4 left-1/4 w-8 h-8 bg-white opacity-10 rounded-full transform animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-              <div className="absolute top-1/4 right-1/3 w-3 h-3 bg-white opacity-15 rounded-full transform animate-pulse" style={{ animationDelay: '1.5s' }}></div>
-            </div>
-          </header>
-          
-          {/* Menu Navigation */}
-          <MenuNavigation
-            sections={filteredSections}
-            activeSection={activeSection}
-            onSectionClick={handleSectionClick}
-          />
-          
-          {/* Menu Content */}
-          <main className="max-w-7xl mx-auto px-4 py-4 ml-64">
-            {filteredSections.length > 0 ? (
-              filteredSections.map((section, sectionIndex) => (
-                <MenuSection
-                  key={section.id}
-                  section={section}
-                  menu={menu}
-                  template={menu.template || 'default'}
-                  onItemClick={openItemModal}
-                />
-              ))
-            ) : (
-              <div className="text-center py-10 bg-gray-50 rounded-lg mt-4">
-                <p className="text-gray-500">No items found with the current filters</p>
-              </div>
-            )}
-          </main>
-        </>
       )}
       
       {/* Item Modal/Popup - Improved implementation */}
@@ -1308,56 +1240,11 @@ const PublicMenuPage = () => {
       )}
       
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 px-4 md:px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-4 md:mb-0">
-              <h3 className="text-xl font-bold">{menu.name}</h3>
-              {menu.description && (
-                <p className="mt-1 text-gray-400 text-sm">{menu.description}</p>
-              )}
-            </div>
-            <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
-                </svg>
-              </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
-                </svg>
-              </a>
-            </div>
-          </div>
-          <div className="mt-6 text-center text-gray-400 text-sm">
-            <p>© {new Date().getFullYear()} {menu.name}. All rights reserved.</p>
-            <p className="mt-1">Powered by <a href="#" className="text-amber-400 hover:text-amber-300">OpenSaaS Menu</a></p>
-          </div>
+      <footer className="py-6 border-t border-gray-200 mt-20">
+        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+          <p>© {new Date().getFullYear()} {menu.name}. All rights reserved.</p>
         </div>
       </footer>
-
-      {/* Quick Filter Bar for No-Images Template */}
-      {menu.template === 'no-images' && (
-        <div className="quick-filter-bar">
-          <button
-            className={`quick-filter-button ${!hasActiveFilters ? 'active' : ''}`}
-            onClick={clearFilters}
-          >
-            All Items
-          </button>
-          {availableDietaryTags.slice(0, 5).map(tag => (
-            <button
-              key={tag.id}
-              className={`quick-filter-button ${selectedDietaryTags.includes(tag.id) ? 'active' : ''}`}
-              onClick={() => toggleDietaryTag(tag.id)}
-            >
-              {tag.icon && <span className="mr-1">{tag.icon}</span>}
-              {tag.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Back to Top Button */}
       <button

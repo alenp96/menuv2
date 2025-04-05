@@ -15,12 +15,10 @@ export const AVAILABLE_CURRENCIES: Currency[] = [
   { code: 'INR', symbol: '₹', position: 'prefix' },
 ];
 
-export type MenuTemplate = 'default' | 'no-images' | 'zvezda';
+export type MenuTemplate = 'default';
 
 export const AVAILABLE_TEMPLATES = [
-  { id: 'default', name: 'Default Template', description: 'Standard menu layout with images' },
-  { id: 'no-images', name: 'No Images', description: 'Clean layout without displaying any item images' },
-  { id: 'zvezda', name: 'Zvezda', description: 'Modern layout with star branding and green theme' }
+  { id: 'default', name: 'Default Template', description: 'Modern layout with star branding and green theme' }
 ];
 
 export type Menu = {

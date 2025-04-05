@@ -1,17 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { useAction } from 'wasp/client/operations';
 import { updateMenuSection, deleteMenuSection, reorderMenuItems } from 'wasp/client/operations';
-import { MenuSection as MenuSectionType, MenuItem, Menu, assertMenuItem } from '../types';
+import { MenuSection as MenuSectionType, MenuItem, Menu, assertMenuItem, formatPrice } from '../types';
 import MenuItemComponent from './MenuItem';
-import DefaultMenuItem from './DefaultMenuItem';
 import NewMenuItem from './NewMenuItem';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import NoImagesMenuItem from './NoImagesMenuItem';
 
 interface MenuSectionProps {
   section: MenuSectionType;
   menu: Menu;
-  template?: 'default' | 'no-images' | 'zvezda';
   onItemClick?: (item: MenuItem) => void;
   onMenuUpdated?: () => void;
   isEditing?: boolean;
@@ -19,8 +16,7 @@ interface MenuSectionProps {
 
 const MenuSection: React.FC<MenuSectionProps> = ({ 
   section, 
-  menu, 
-  template = 'default',
+  menu,
   onItemClick,
   onMenuUpdated,
   isEditing = false
@@ -262,29 +258,32 @@ const MenuSection: React.FC<MenuSectionProps> = ({
       </div>
 
       {section.items.length > 0 ? (
-        template === 'default' ? (
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-            {section.items.map((item) => (
-              <DefaultMenuItem
-                key={item.id}
-                item={item}
-                menu={menu}
-                onClick={() => onItemClick?.(item)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {section.items.map((item) => (
-              <NoImagesMenuItem
-                key={item.id}
-                item={item}
-                menu={menu}
-                onClick={() => onItemClick?.(item)}
-              />
-            ))}
-          </div>
-        )
+        <div className="space-y-4">
+          {section.items.map((item) => (
+            <div 
+              key={item.id} 
+              className="zvezda-menu-item cursor-pointer"
+              onClick={() => onItemClick?.(item)}
+            >
+              {item.imageUrl && (
+                <img 
+                  src={item.imageUrl} 
+                  alt={item.name} 
+                  className="zvezda-item-image"
+                  onError={(e) => {
+                    const imgElement = e.currentTarget;
+                    imgElement.src = 'https://via.placeholder.com/90x90?text=No+Image';
+                  }}
+                />
+              )}
+              <div className="zvezda-item-content">
+                <h3 className="zvezda-item-title">{item.name}</h3>
+                {item.description && <p className="zvezda-item-description">{item.description}</p>}
+                <p className="zvezda-item-price">{formatPrice(item.price, menu)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="text-center py-8 bg-gray-50 rounded-lg">
           <p className="text-gray-500 text-sm">No items in this section</p>

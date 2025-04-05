@@ -117,7 +117,7 @@ export const getMenuById: GetMenuById<{ menuId: string; template?: string }, Men
   // Add the template field programmatically, using any template value passed in or default
   return {
     ...menu,
-    template: template || 'default'
+    template: 'default'
   };
 };
 
@@ -176,7 +176,7 @@ export const getPublicMenu: GetPublicMenu<{ publicUrl: string; template?: string
   // Add the template field programmatically, using the requested template if available
   return {
     ...menu,
-    template: template || 'default'
+    template: 'default'
   };
 };
 
@@ -309,7 +309,7 @@ export const updateMenu: UpdateMenu<{
   // Add the template field programmatically
   return {
     ...updatedMenu,
-    template: template || 'default'
+    template: 'default'
   };
 };
 
