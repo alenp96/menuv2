@@ -4,7 +4,7 @@ import { CgProfile } from 'react-icons/cg';
 import { UserMenuItems } from './UserMenuItems';
 import { cn } from '../client/cn';
 
-const DropdownUser = ({ user }: { user: Partial<User> }) => {
+const DropdownUser = ({ user, isLandingPage = false }: { user: Partial<User>, isLandingPage?: boolean }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const trigger = useRef<any>(null);
@@ -39,14 +39,25 @@ const DropdownUser = ({ user }: { user: Partial<User> }) => {
       <button
         ref={trigger}
         onClick={toggleDropdown}
-        className='flex items-center gap-4 duration-300 ease-in-out text-gray-900 hover:text-yellow-500'
+        className={cn('flex items-center gap-4 duration-300 ease-in-out', {
+          'text-white hover:text-amber-500': isLandingPage,
+          'text-gray-900 hover:text-yellow-500': !isLandingPage
+        })}
       >
         <span className='hidden text-right lg:block'>
-          <span className='block text-sm font-medium dark:text-white'>{user.username}</span>
+          <span className={cn('block text-sm font-medium', {
+            'text-white': isLandingPage,
+            'text-gray-900': !isLandingPage
+          })}>{user.username}</span>
         </span>
-        <CgProfile size='1.1rem' className='ml-1 mt-[0.1rem] dark:text-white' />
+        <CgProfile size='1.1rem' className={cn('ml-1 mt-[0.1rem]', {
+          'text-white': isLandingPage,
+          'text-gray-900': !isLandingPage
+        })} />
         <svg
-          className={cn('hidden fill-current dark:fill-white sm:block', {
+          className={cn('hidden fill-current sm:block', {
+            'text-white': isLandingPage,
+            'text-gray-900': !isLandingPage,
             'rotate-180': dropdownOpen,
           })}
           width='12'
@@ -68,13 +79,14 @@ const DropdownUser = ({ user }: { user: Partial<User> }) => {
       <div
         ref={dropdown}
         className={cn(
-          'absolute right-0 mt-4 flex w-62.5 flex-col rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark dark:text-white',
-          {
-            hidden: !dropdownOpen,
+          'absolute right-0 mt-4 flex w-62.5 flex-col rounded-sm border shadow-default', {
+            'bg-[#2d2d2d] border-gray-700 text-white': isLandingPage,
+            'bg-white border-gray-200 text-gray-900': !isLandingPage,
+            'hidden': !dropdownOpen,
           }
         )}
       >
-        <UserMenuItems user={user} setMobileMenuOpen={toggleDropdown} />
+        <UserMenuItems user={user} setMobileMenuOpen={toggleDropdown} isLandingPage={isLandingPage} />
       </div>
     </div>
   );

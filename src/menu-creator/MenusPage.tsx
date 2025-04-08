@@ -221,21 +221,33 @@ const MenusPage = () => {
                       </span>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <Link
-                      to={`/menus/${menu.id}`}
-                      className="flex-1 inline-flex justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700 hover:shadow-md transition-all duration-200"
-                    >
-                      Edit Menu
-                    </Link>
-                    <button
-                      onClick={() => handleDeleteMenu(menu.id)}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex space-x-2">
+                      <Link
+                        to={`/menus/${menu.id}`}
+                        className="flex-1 inline-flex justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700 hover:shadow-md transition-all duration-200"
+                      >
+                        Edit Menu
+                      </Link>
+                      {menu.isPublished && menu.publicUrl && (
+                        <Link
+                          to={`/menu/${menu.publicUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 inline-flex justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 hover:shadow-md transition-all duration-200"
+                        >
+                          View
+                        </Link>
+                      )}
+                      <button
+                        onClick={() => handleDeleteMenu(menu.id)}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -248,15 +260,12 @@ const MenusPage = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           <h2 className="text-xl font-semibold mb-2 text-gray-700">No menus yet</h2>
-          <p className="text-gray-500 mb-4">Create your first menu to get started.</p>
+          <p className="text-gray-500 mb-6">Create your first menu to get started.</p>
           <button
             onClick={showCreateForm}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700 hover:shadow-md transition-all duration-200"
+            className="inline-flex justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create Your First Menu
+            Create Menu
           </button>
         </div>
       )}

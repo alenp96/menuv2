@@ -23,28 +23,7 @@ model User {
   credits                       Int                  @default(3)
   contactFormMessages           ContactFormMessage[]
   files                         File[]
-  gptResponses                  GptResponse[]
   menus                         Menu[]
-  tasks                         Task[]
-}
-
-model GptResponse {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    String
-  content   String
-  user      User     @relation(fields: [userId], references: [id])
-}
-
-model Task {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
-  userId      String
-  description String
-  time        String   @default("1")
-  isDone      Boolean  @default(false)
-  user        User     @relation(fields: [userId], references: [id])
 }
 
 model File {

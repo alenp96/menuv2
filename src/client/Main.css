@@ -165,3 +165,11 @@ span.flatpickr-weekday,
 [x-cloak] {
   display: none !important;
 }
+
+/* Full-width styles for landing page only */
+.landing-page-container {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}

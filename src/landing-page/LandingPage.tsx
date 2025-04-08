@@ -1,20 +1,20 @@
-import { features, faqs, footerNavigation, testimonials } from './contentSections';
+import { footerNavigation, faqs, features } from './contentSections';
 import Hero from './components/Hero';
-import Clients from './components/Clients';
-import Features from './components/Features';
-import Testimonials from './components/Testimonials';
-import FAQ from './components/FAQ';
 import Footer from './components/Footer';
+import FAQ from './components/FAQ';
+import Features from './components/Features';
 
 export default function LandingPage() {
   return (
-    <div className='bg-white dark:text-white dark:bg-boxdark-2'>
-      <main className='isolate dark:bg-boxdark-2'>
+    <div className='fixed inset-0 w-screen overflow-auto bg-[#1a1a1a] text-white'>
+      <main className='isolate bg-[#1a1a1a] w-full'>
         <Hero />
-        <Clients />
-        <Features features={features} />
-        <Testimonials testimonials={testimonials} />
-        <FAQ faqs={faqs} />
+        <div id="features">
+          <Features features={features} />
+        </div>
+        <div id="faq">
+          <FAQ faqs={faqs} />
+        </div>
       </main>
       <Footer footerNavigation={footerNavigation} />
     </div>
