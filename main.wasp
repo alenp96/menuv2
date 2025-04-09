@@ -406,6 +406,11 @@ query getMenuItemImageUploadUrl {
   entities: [User, Menu, MenuSection, MenuItem]
 }
 
+query getMenuLogoUploadUrl {
+  fn: import { getMenuLogoUploadUrl } from "@src/menu-creator/operations",
+  entities: [User, Menu]
+}
+
 action importMenuFromCsv {
   fn: import { importMenuFromCsv } from "@src/menu-creator/operations.js",
   entities: [Menu, MenuSection, MenuItem, DietaryTag, Allergen]

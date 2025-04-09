@@ -8,6 +8,7 @@
     "@google-analytics/data": "4.1.0",
     "@headlessui/react": "1.7.13",
     "@hello-pangea/dnd": "^18.0.1",
+    "@heroicons/react": "^2.2.0",
     "@lemonsqueezy/lemonsqueezy.js": "^3.2.0",
     "@tailwindcss/forms": "^0.5.3",
     "@tailwindcss/typography": "^0.5.7",

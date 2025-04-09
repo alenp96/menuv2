@@ -35,6 +35,7 @@ export type Menu = {
   currencySymbol: string;
   currencyPosition: 'prefix' | 'suffix';
   template: MenuTemplate;
+  logoUrl: string | null;
 };
 
 export type MenuSection = {
@@ -104,6 +105,7 @@ export type CreateMenuItem<Args, Result> = (args: Args, context: any) => Promise
 export type UpdateMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type DeleteMenuItem<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type GetMenuItemImageUploadUrl<Args, Result> = (args: Args, context: any) => Promise<Result>;
+export type GetMenuLogoUploadUrl<Args, Result> = (args: Args, context: any) => Promise<Result>;
 export type ImportMenuFromCsv<Args, Result> = (args: Args, context: any) => Promise<Result>;
 
 // CSV import types

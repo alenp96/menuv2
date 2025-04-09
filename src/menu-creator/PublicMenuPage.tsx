@@ -5,6 +5,7 @@ import { getPublicMenu } from 'wasp/client/operations';
 import { Menu, MenuSection as MenuSectionType, MenuItem, assertMenu, DietaryTag, Allergen, formatPrice } from './types';
 import MenuSection from './components/MenuSection';
 import MenuNavigation from './components/MenuNavigation';
+import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 
 // Standalone public menu page without any app components
 const PublicMenuPage = () => {
@@ -45,7 +46,7 @@ const PublicMenuPage = () => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({});
   const modalRef = useRef<HTMLDivElement | null>(null);
   
   // New state for search and filters
@@ -232,41 +233,111 @@ const PublicMenuPage = () => {
     );
   };
 
-  // Modify handleSectionClick to ensure the tab is visible
+  // Add this function to handle tab scrolling
+  const scrollTabIntoView = (sectionId: string) => {
+    const activeTab = document.querySelector(`.zvezda-tab[data-section-id="${sectionId}"], .menu-nav-item[data-section-id="${sectionId}"]`);
+    const tabsScroller = document.getElementById('tabsScroller');
+    
+    if (activeTab && tabsScroller) {
+      const tabRect = activeTab.getBoundingClientRect();
+      const scrollerRect = tabsScroller.getBoundingClientRect();
+      
+      // Check if the active tab is not fully visible
+      const isTabVisible = 
+        tabRect.left >= scrollerRect.left && 
+        tabRect.right <= scrollerRect.right;
+      
+      if (!isTabVisible) {
+        // Calculate the scroll position to center the active tab
+        const scrollLeft = 
+          tabRect.left - scrollerRect.left + tabsScroller.scrollLeft - 
+          (scrollerRect.width / 2) + (tabRect.width / 2);
+        
+        // Scroll the tabsScroller to the calculated position
+        tabsScroller.scrollTo({
+          left: Math.max(0, scrollLeft),
+          behavior: 'smooth'
+        });
+      }
+    }
+  };
+
+  // Update the useEffect that handles scroll position detection
+  useEffect(() => {
+    // Skip if no sections available
+    if (!filteredSections.length) return;
+
+    const handleScroll = () => {
+      // Use requestAnimationFrame for better performance
+      requestAnimationFrame(() => {
+        const scrollPosition = window.scrollY + 150; // Offset for header
+        
+        // Create an array of section positions only once per scroll event
+        const sectionPositions = Object.entries(sectionRefs.current)
+          .filter(([_, element]) => element !== null)
+          .map(([sectionId, element]) => ({
+            id: sectionId,
+            top: element?.offsetTop || 0
+          }))
+          .sort((a, b) => a.top - b.top);
+        
+        // Find the current section using binary search for better performance
+        let currentSectionId: string | null = null;
+        for (let i = sectionPositions.length - 1; i >= 0; i--) {
+          if (scrollPosition >= sectionPositions[i].top) {
+            currentSectionId = sectionPositions[i].id;
+            break;
+          }
+        }
+        
+        // Only update state if section changed
+        if (currentSectionId && activeSection !== currentSectionId) {
+          setActiveSection(currentSectionId);
+          // Find index of this section in filteredSections
+          const index = filteredSections.findIndex(s => s.id === currentSectionId);
+          if (index !== -1) {
+            setActiveSectionIndex(index);
+            
+            // Scroll the navigation to make the active tab visible
+            setTimeout(() => {
+              scrollTabIntoView(currentSectionId!);
+            }, 100); // Small delay to ensure DOM updates
+          }
+        }
+      });
+    };
+
+    // Use passive: true for better scroll performance
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [activeSection, filteredSections]);
+
+  // Update the handleSectionClick function to also scroll the tab into view
   const handleSectionClick = useCallback((sectionId: string, index: number) => {
     setActiveSection(sectionId);
     setActiveSectionIndex(index);
-    
-    // Use the id attribute for smooth scrolling to the section
+
+    // Adjust scroll offset based on header height (approx 60px for sticky nav + potential top bar)
+    const headerOffset = 100; // Adjust this value as needed
     const sectionElement = document.getElementById(`section-${sectionId}`);
     if (sectionElement) {
-      sectionElement.scrollIntoView({ behavior: 'smooth' });
+      const elementPosition = sectionElement.getBoundingClientRect().top + window.pageYOffset;
+      const offsetPosition = elementPosition - headerOffset;
+
+      window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+      });
     }
-    
+
     // Find and scroll the tab into view
     setTimeout(() => {
-      const activeTab = document.querySelector(`.zvezda-tab[data-section-id="${sectionId}"], .menu-nav-item[data-section-id="${sectionId}"]`);
-      const tabsScroller = document.getElementById('tabsScroller');
-      
-      if (activeTab && tabsScroller) {
-        // Check if the tab is fully visible
-        if (!isElementVisible(tabsScroller, activeTab)) {
-          // Calculate the scroll position to center the active tab
-          const scrollLeft = 
-            activeTab.getBoundingClientRect().left - 
-            tabsScroller.getBoundingClientRect().left + 
-            tabsScroller.scrollLeft - 
-            (tabsScroller.clientWidth / 2) + 
-            (activeTab.clientWidth / 2);
-          
-          tabsScroller.scrollTo({
-            left: Math.max(0, scrollLeft),
-            behavior: 'smooth'
-          });
-        }
-      }
-    }, 100);
-  }, []);
+      scrollTabIntoView(sectionId);
+    }, 100); // Delay ensures smooth scroll finishes first
+  }, [scrollTabIntoView]); // Added scrollTabIntoView dependency
 
   const openItemModal = useCallback((item: MenuItem) => {
     setSelectedItem(item);
@@ -326,84 +397,6 @@ const PublicMenuPage = () => {
       setActiveSection(null);
     }
   }, [filteredSections, activeSection]);
-
-  // Modify the useEffect that handles scroll position detection to also scroll the navigation
-  useEffect(() => {
-    // Skip if no sections available
-    if (!filteredSections.length) return;
-
-    const handleScroll = () => {
-      // Use requestAnimationFrame for better performance
-      requestAnimationFrame(() => {
-        const scrollPosition = window.scrollY + 150; // Offset for header
-        
-        // Create an array of section positions only once per scroll event
-        const sectionPositions = Object.entries(sectionRefs.current)
-          .filter(([_, element]) => element !== null)
-          .map(([sectionId, element]) => ({
-            id: sectionId,
-            top: element?.offsetTop || 0
-          }))
-          .sort((a, b) => a.top - b.top);
-        
-        // Find the current section using binary search for better performance
-        let currentSectionId: string | null = null;
-        for (let i = sectionPositions.length - 1; i >= 0; i--) {
-          if (scrollPosition >= sectionPositions[i].top) {
-            currentSectionId = sectionPositions[i].id;
-            break;
-          }
-        }
-        
-        // Only update state if section changed
-        if (currentSectionId && activeSection !== currentSectionId) {
-          setActiveSection(currentSectionId);
-          // Find index of this section in filteredSections
-          const index = filteredSections.findIndex(s => s.id === currentSectionId);
-          if (index !== -1) {
-            setActiveSectionIndex(index);
-            
-            // Scroll the navigation to make the active tab visible
-            setTimeout(() => {
-              const activeTab = document.querySelector('.zvezda-tab.active, .menu-nav-item.active');
-              const tabsScroller = document.getElementById('tabsScroller');
-              
-              if (activeTab && tabsScroller) {
-                // The position of the active tab relative to the scroller
-                const tabRect = activeTab.getBoundingClientRect();
-                const scrollerRect = tabsScroller.getBoundingClientRect();
-                
-                // Check if the active tab is not fully visible
-                const isTabVisible = 
-                  tabRect.left >= scrollerRect.left && 
-                  tabRect.right <= scrollerRect.right;
-                
-                if (!isTabVisible) {
-                  // Calculate the scroll position to center the active tab
-                  const scrollLeft = 
-                    tabRect.left - scrollerRect.left + tabsScroller.scrollLeft - 
-                    (scrollerRect.width / 2) + (tabRect.width / 2);
-                  
-                  // Scroll the tabsScroller to the calculated position
-                  tabsScroller.scrollTo({
-                    left: Math.max(0, scrollLeft),
-                    behavior: 'smooth'
-                  });
-                }
-              }
-            }, 100); // Small delay to ensure DOM updates
-          }
-        }
-      });
-    };
-
-    // Use passive: true for better scroll performance
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [activeSection, filteredSections]);
 
   // Add scroll event listener for back to top button with improved performance
   useEffect(() => {
@@ -539,723 +532,773 @@ const PublicMenuPage = () => {
   );
   
   return (
-    <div className="min-h-screen font-sans">
+    <div className="min-h-screen font-roboto bg-gray-100">
       {/* Add a style tag to ensure this page is completely standalone */}
       <style>{`
         body {
-          font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
           color: #333;
-          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+          background-color: #f3f4f6;
           margin: 0;
           padding: 0;
+          overflow-x: hidden; // Prevent horizontal scroll
         }
-        .zvezda-header {
-          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-          padding: 2rem 1rem;
+        .public-menu-header {
+          background: linear-gradient(135deg, #2a2638 0%, #3d2e2a 100%);
+          color: white;
+          padding: 1.5rem 1rem 2rem;
           text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
+          border-radius: 0;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
           position: relative;
           overflow: hidden;
+          margin-bottom: 0;
         }
-        .zvezda-star {
-          color: #f59e0b;
-          font-size: 2.5rem;
-          margin-bottom: 0.5rem;
+        /* Add decorative blur elements to header */
+        .header-blur-element {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(30px);
+          z-index: 0;
         }
-        .zvezda-title {
-          font-family: 'Poppins', sans-serif;
+        .header-blur-1 {
+          width: 200px;
+          height: 200px;
+          top: -60px;
+          left: 20%;
+          background: radial-gradient(circle, rgba(244, 162, 97, 0.4) 0%, rgba(231, 111, 81, 0.2) 70%);
+          animation: float 12s ease-in-out infinite;
+        }
+        .header-blur-2 {
+          width: 220px;
+          height: 220px;
+          bottom: -80px;
+          right: 15%;
+          background: radial-gradient(circle, rgba(251, 191, 36, 0.35) 0%, rgba(251, 191, 36, 0.1) 70%);
+          filter: blur(40px);
+          animation: float 15s ease-in-out infinite alternate;
+        }
+        .header-blur-3 {
+          width: 180px;
+          height: 180px;
+          top: 20%;
+          right: 10%;
+          background: radial-gradient(circle, rgba(244, 162, 97, 0.3) 0%, rgba(231, 111, 81, 0.15) 70%);
+          animation: float 10s ease-in-out infinite alternate-reverse;
+        }
+        /* Add a decorative dotted pattern overlay */
+        .header-pattern {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+          background-size: 20px 20px;
+          opacity: 0.3;
+          z-index: 0;
+        }
+        @keyframes float {
+          0% { transform: translateY(0) scale(1); opacity: 0.8; }
+          50% { transform: translateY(-15px) scale(1.05); opacity: 1; }
+          100% { transform: translateY(0) scale(1); opacity: 0.8; }
+        }
+        @media (min-width: 768px) {
+          .public-menu-header {
+            padding: 2rem 2rem 2.5rem;
+          }
+        }
+        .header-content {
+          position: relative;
+          z-index: 1; /* Above the blur elements */
+        }
+        .header-logo-container {
+          width: 40px;
+          height: 40px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 50%;
+          padding: 0.25rem;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          margin-right: 0.75rem;
+          vertical-align: middle;
+          box-shadow: 0 0 15px rgba(114, 59, 209, 0.6);
+        }
+        .header-logo {
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+          border-radius: 50%;
+        }
+        .header-title {
+          font-family: 'Montserrat', sans-serif;
+          font-size: 1.25rem;
           font-weight: 700;
-          font-size: 2.5rem;
-          letter-spacing: 0.1em;
-          color: white;
-          text-transform: uppercase;
-          line-height: 1;
-          text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+          display: inline-block;
+          vertical-align: middle;
+          background: linear-gradient(90deg, #F4A261 0%, #E76F51 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          margin: 0;
         }
-        .zvezda-tabs-container, .menu-section-nav {
+        .header-description {
+          font-size: 0.875rem;
+          max-width: 90%;
+          margin: 0.5rem auto 1.25rem;
+          color: rgba(255, 255, 255, 0.8);
+          line-height: 1.4;
+        }
+        @media (min-width: 768px) {
+          .header-description {
+             max-width: 600px;
+             font-size: 1rem;
+          }
+        }
+        /* Redesigned search filter container */
+        .search-filter-container {
+          display: flex;
+          max-width: 85%;
+          margin: 0 auto;
+          position: relative;
+          z-index: 1;
+        }
+        .search-input-wrapper {
+          display: flex;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.15);
+          border-radius: 9999px;
+          width: 100%;
+          max-width: 350px;
+          margin: 0 auto;
+          padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .search-input {
+          flex-grow: 1;
+          background: transparent;
+          border: none;
+          color: white;
+          font-size: 0.875rem;
+          padding: 0.375rem 0.25rem;
+          width: 100%;
+          outline: none;
+        }
+        .search-input::placeholder {
+          color: rgba(255, 255, 255, 0.6);
+          font-style: italic;
+        }
+        .filter-button {
+          background-color: #E76F51;
+          color: white;
+          border: none;
+          border-radius: 9999px;
+          padding: 0.375rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 28px;
+          height: 28px;
+        }
+        .filter-button.active {
+          background-color: #F4A261;
+        }
+        /* Redesigned navigation to match screenshot */
+        .menu-nav-container {
           position: sticky;
           top: 0;
           z-index: 40;
-          background-color: #2d2d2d;
-          padding: 0.5rem 0;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          overflow: hidden;
+          background-color: white;
+          padding: 0.75rem 0.5rem;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          border-radius: 0;
+          margin-top: 0;
         }
-        .scroll-button {
-          display: none; /* Hidden by default, shown on larger screens */
-          background-color: #2d2d2d;
-          color: white;
-          border: none;
-          border-radius: 50%;
-          width: 36px;
-          height: 36px;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          position: absolute;
-          z-index: 41;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          transition: all 0.2s;
-          opacity: 0.9;
-        }
-        .scroll-button:hover {
-          background-color: #3d3d3d;
-          opacity: 1;
-        }
-        .scroll-left {
-          left: 10px;
-        }
-        .scroll-right {
-          right: 10px;
-        }
-        .zvezda-tabs-wrapper, .menu-section-scroll {
+        .menu-nav-scroll {
           overflow-x: auto;
-          scrollbar-width: thin;
-          -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
-          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
           scroll-behavior: smooth;
-          padding-left: 0.25rem !important; /* Ensure first section is visible */
-          padding-right: 1rem;
-          white-space: nowrap;
+          padding: 0 0.5rem;
         }
-        .zvezda-tabs-wrapper::-webkit-scrollbar, .menu-section-scroll::-webkit-scrollbar {
+        .menu-nav-scroll::-webkit-scrollbar {
           display: none;
         }
-        .zvezda-tabs, .menu-nav-item {
+        .menu-nav-list {
           display: flex;
-          gap: 0.375rem;
-          padding: 0.5rem 0;
+          gap: 0.5rem;
+          padding: 0.25rem 0;
           margin: 0;
           white-space: nowrap;
-          position: relative;
+          justify-content: flex-start;
         }
-        .zvezda-tab, .menu-nav-item {
-          padding: 0.5rem 0.75rem; /* Smaller padding for more compact buttons */
-          font-size: 0.85rem; /* Smaller font to fit more buttons */
-          margin-right: 0.25rem; /* Add spacing between buttons */
+        .menu-nav-item {
+          padding: 0.5rem 1rem;
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #4b5563;
+          background-color: #e5e7eb;
+          border: none;
+          border-radius: 9999px;
+          cursor: pointer;
+          transition: all 0.2s ease-in-out;
+          text-align: center;
+          flex-shrink: 0;
         }
-        .zvezda-tab.active, .menu-nav-item.active {
-          background-color: #f59e0b;
+        .menu-nav-item.active {
+          background: #F4A261;
           color: white;
-          box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+          font-weight: 600;
         }
-        .zvezda-section-title, .menu-nav-item:not(.active) {
-          font-size: 1.75rem;
-          font-weight: 700;
-          color: #1a1a1a;
-          margin-bottom: 1.5rem;
-          padding-bottom: 0.75rem;
-          border-bottom: 3px solid #f59e0b;
-          display: inline-block;
-          scroll-margin-top: 90px;
+        .menu-nav-item:hover:not(.active) {
+          background-color: #d1d5db;
         }
-        .zvezda-menu-container {
+        .menu-content-container {
           background: white;
-          padding: 2rem 1rem;
-          margin-top: 2rem;
-          border-radius: 2rem 2rem 0 0;
-          min-height: 70vh;
-          transition: margin-left 0.3s ease-in-out;
+          padding: 1rem;
+          margin: 1rem;
+          border-radius: 1rem;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          min-height: 60vh;
         }
-        .zvezda-menu-section {
-          display: grid;
-          gap: 2rem;
+         @media (min-width: 768px) {
+           .menu-content-container {
+             padding: 1.5rem;
+             margin: 1.5rem auto;
+             max-width: 900px;
+           }
+         }
+        .menu-section-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 1rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 2px solid #F4A261;
+          display: inline-block;
+          scroll-margin-top: 80px;
         }
-        .zvezda-menu-item {
+        .menu-item-card {
           display: flex;
-          margin-bottom: 1.5rem;
-          padding-bottom: 1.5rem;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid #e5e7eb;
+          align-items: flex-start;
         }
-        .zvezda-menu-item:last-child {
+        .menu-item-card:last-child {
           border-bottom: none;
+          margin-bottom: 0;
         }
-        .zvezda-item-image {
-          width: 90px;
-          height: 90px;
-          border-radius: 8px;
+        .item-image-container {
+          flex-shrink: 0;
+        }
+        .item-image {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
           object-fit: cover;
-          margin-right: 1rem;
-          box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .zvezda-item-content {
-          flex: 1;
+        .item-icon {
+           width: 50px;
+           height: 50px;
+           border-radius: 50%;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           background-color: #fef3c7;
+           color: #F4A261;
+           font-size: 1.25rem;
         }
-        .zvezda-item-header {
+        .item-content {
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          min-height: 50px;
+        }
+        .item-details {
+           margin-bottom: 0.5rem;
+        }
+        .item-name {
+          font-size: 1rem;
+          font-weight: 700;
+          color: #111827;
+          margin-bottom: 0.125rem;
+          line-height: 1.3;
+        }
+        .item-description {
+          font-size: 0.75rem;
+          color: #6b7280;
+          line-height: 1.4;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .item-footer {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 0.25rem;
-        }
-        .zvezda-item-name {
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: #1a1a1a;
-          padding-right: 1rem;
-        }
-        .zvezda-item-price {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: #f59e0b;
-          white-space: nowrap;
-        }
-        .zvezda-item-description {
-          font-size: 1rem;
-          color: #666;
-          margin-top: 0.25rem;
-          margin-bottom: 0.5rem;
-        }
-        .zvezda-item-tags {
-          display: flex;
+          align-items: center;
           flex-wrap: wrap;
           gap: 0.5rem;
-          margin-top: 0.5rem;
         }
-        .zvezda-tag {
-          padding: 0.25rem 0.5rem;
-          border-radius: 4px;
+        .item-price {
+          font-size: 0.875rem;
+          font-weight: 700;
+          color: #c2410c;
+          background: linear-gradient(90deg, #fed7aa, #fbbf24);
+          padding: 0.25rem 0.625rem;
+          border-radius: 9999px;
+          white-space: nowrap;
+        }
+        .item-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.375rem;
+        }
+        .tag-badge {
+          font-size: 0.625rem;
+          font-weight: 500;
+          padding: 0.125rem 0.5rem;
+          border-radius: 9999px;
+          text-transform: capitalize;
+          background-color: #dbeafe;
+          color: #1e40af;
+        }
+        .tag-badge.allergen {
+           background-color: #fee2e2;
+           color: #991b1b;
+        }
+        .modal-content {
+           background: white;
+           border-radius: 1rem;
+           padding: 1.5rem;
+           box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        /* Modal media container with 3:4 aspect ratio */
+        .modal-media-container {
+          position: relative;
+          width: 100%;
+          padding-top: 133.33%; /* 3:4 aspect ratio (4/3 * 100%) */
+          margin-bottom: 1.25rem;
+          background-color: #f3f4f6;
+          border-radius: 0.75rem;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .modal-media-content {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .modal-switch-button {
+          position: absolute;
+          bottom: 0.75rem;
+          right: 0.75rem;
+          background-color: rgba(0, 0, 0, 0.6);
+          color: white;
+          border: none;
+          border-radius: 0.375rem;
+          padding: 0.375rem 0.75rem;
           font-size: 0.75rem;
           font-weight: 500;
           display: flex;
           align-items: center;
+          gap: 0.25rem;
+          backdrop-filter: blur(4px);
+          transition: all 0.2s ease;
+          z-index: 10;
         }
-        .zvezda-dietary-tag {
-          background-color: #dcfce7;
-          color: #16a34a;
+        .modal-switch-button:hover {
+          background-color: rgba(0, 0, 0, 0.75);
         }
-        .zvezda-allergen-tag {
-          background-color: #fee2e2;
-          color: #dc2626;
-        }
-        .zvezda-search-container {
-          background-color: #2d2d2d;
-          padding: 1rem;
-          position: relative;
-          z-index: 30;
-        }
-        .zvezda-search-inner {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 0.5rem;
-          padding: 0.75rem;
-          max-width: 800px;
-          margin: 0 auto;
-        }
-        .zvezda-search-input {
-          width: 100%;
-          background: rgba(255, 255, 255, 0.9);
-          border: none;
-          border-radius: 0.375rem;
-          padding: 0.625rem 1rem;
-          font-size: 0.875rem;
-          color: #1a1a1a;
-        }
-        .zvezda-search-input:focus {
-          outline: 2px solid #f59e0b;
-        }
-        .zvezda-filter-button, .menu-section-scroll {
-          display: flex;
-          align-items: center;
-          gap: 0.375rem;
-          margin-top: 0.75rem;
-          padding: 0.5rem 0.75rem;
-          background: rgba(255, 255, 255, 0.2);
-          border: none;
-          border-radius: 0.375rem;
+        .modal-close-button {
+          position: absolute;
+          top: 0.75rem;
+          right: 0.75rem;
+          background-color: rgba(0, 0, 0, 0.5);
           color: white;
-          font-size: 0.875rem;
-          cursor: pointer;
-        }
-        .zvezda-filter-button:hover, .menu-section-scroll {
-          background: rgba(255, 255, 255, 0.3);
-        }
-        .zvezda-filter-badge, .menu-section-scroll {
-          background: #f59e0b;
-          color: white;
-          font-size: 0.75rem;
-          font-weight: bold;
-          width: 1.25rem;
-          height: 1.25rem;
+          border: none;
+          border-radius: 9999px;
+          width: 2rem;
+          height: 2rem;
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 9999px;
+          z-index: 20;
+          backdrop-filter: blur(4px);
+          transition: all 0.2s ease;
         }
-        .zvezda-filters-panel, .menu-section-scroll {
-          background: #1a1a1a;
-          border-radius: 0.5rem;
-          padding: 1rem;
-          margin-top: 0.5rem;
-          animation: fadeIn 0.3s ease;
+        .modal-close-button:hover {
+          background-color: rgba(0, 0, 0, 0.7);
         }
-        .zvezda-filter-group-title, .menu-section-scroll {
-          font-size: 0.75rem;
-          color: rgba(255, 255, 255, 0.7);
+        .modal-item-name {
+          font-size: 1.5rem;
+          font-weight: 700;
           margin-bottom: 0.5rem;
-          font-weight: 600;
+          color: #1f2937;
         }
-        .zvezda-filter-options, .menu-section-scroll {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
+        .modal-item-price {
+          font-size: 1.125rem;
+          font-weight: 600;
+          color: #c2410c;
+          background: linear-gradient(90deg, #fed7aa, #fbbf24);
+          padding: 0.375rem 0.875rem;
+          border-radius: 9999px;
+          display: inline-block;
           margin-bottom: 1rem;
         }
-        .zvezda-filter-option, .menu-section-scroll {
-          padding: 0.375rem 0.625rem;
-          border-radius: 9999px;
+        .modal-item-description {
+          font-size: 0.875rem;
+          line-height: 1.5;
+          color: #4b5563;
+          margin-bottom: 1.25rem;
+          padding-bottom: 1.25rem;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-section-title {
           font-size: 0.75rem;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: flex;
-          align-items: center;
-        }
-        .zvezda-dietary-option, .menu-section-scroll {
-          background: rgba(22, 163, 74, 0.2);
-          color: #dcfce7;
-        }
-        .zvezda-dietary-option.active, .menu-section-scroll {
-          background: #16a34a;
-          color: white;
-        }
-        .zvezda-allergen-option, .menu-section-scroll {
-          background: rgba(220, 38, 38, 0.2);
-          color: #fee2e2;
-        }
-        .zvezda-allergen-option.active, .menu-section-scroll {
-          background: #dc2626;
-          color: white;
-        }
-        .zvezda-clear-filters, .menu-section-scroll {
-          padding: 0.375rem 0.625rem;
-          color: #f59e0b;
-          font-size: 0.75rem;
-          background: none;
-          border: none;
-          cursor: pointer;
-        }
-        .zvezda-clear-filters:hover, .menu-section-scroll {
-          color: #fbbf24;
-        }
-        .header-wave {
-          position: absolute;
-          bottom: -2px;
-          left: 0;
-          width: 100%;
-          height: 20px;
-          background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z' opacity='.1' fill='%23FFFFFF'%3E%3C/path%3E%3Cpath d='M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z' opacity='.2' fill='%23FFFFFF'%3E%3C/path%3E%3Cpath d='M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z' fill='%23FFFFFF'%3E%3C/path%3E%3C/svg%3E") no-repeat;
-          background-size: cover;
-        }
-        .back-to-top {
-          position: fixed;
-          bottom: 2rem;
-          right: 2rem;
-          width: 40px;
-          height: 40px;
-          background-color: #f59e0b;
-          color: white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          opacity: 0;
-          transition: all 0.2s ease;
-          z-index: 50;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .back-to-top.visible {
-          opacity: 1;
-        }
-        .back-to-top:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        @media (min-width: 768px) {
-          .zvezda-menu-container {
-            max-width: 1200px;
-            margin: 2rem auto 0;
-            padding: 2rem;
-          }
-          .zvezda-menu-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-            gap: 2rem;
-          }
-        }
-        @media (max-width: 767px) {
-          .zvezda-menu-container {
-            margin-left: 0 !important;
-          }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes modalFadeIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.025em;
+          color: #6b7280;
+          margin-bottom: 0.5rem;
         }
       `}</style>
 
-      {menu && (
-        <>
-          {/* Zvezda Header */}
-          <header className="zvezda-header">
-            <div className="zvezda-star">★</div>
-            <h1 className="zvezda-title">{menu.name}</h1>
-            {menu.description && (
-              <p className="text-center text-white mt-3 max-w-md mx-auto text-sm md:text-base font-light opacity-90">
-                {menu.description}
-              </p>
-            )}
-            <div className="header-wave"></div>
-          </header>
+      {/* Header with blurred background elements */}
+      <header className="public-menu-header">
+        {/* Decorative blurred elements */}
+        <div className="header-blur-element header-blur-1"></div>
+        <div className="header-blur-element header-blur-2"></div>
+        <div className="header-blur-element header-blur-3"></div>
+        <div className="header-pattern"></div>
+        
+        <div className="header-content">
+          {/* Logo and Title */}
+          <div className="flex items-center justify-center mb-3">
+              {menu.logoUrl ? (
+              <div className="header-logo-container">
+                  <img src={menu.logoUrl} alt={`${menu.name} Logo`} className="header-logo" />
+              </div>
+              ) : (
+               <div className="w-10 h-10 mr-3"></div> // Placeholder for spacing if no logo
+              )}
+              <h1 className="header-title">{menu.name}</h1>
+          </div>
 
-          {/* Zvezda Search & Filter */}
-          <div className="zvezda-search-container">
-            <div className="zvezda-search-inner">
-              <input
-                type="text"
-                placeholder="Search menu items..."
-                className="zvezda-search-input"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <button 
-                onClick={() => setIsFilterVisible(!isFilterVisible)}
-                className="zvezda-filter-button"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                </svg>
-                <span>Filters</span>
-                {hasActiveFilters && (
-                  <span className="zvezda-filter-badge">
-                    {selectedDietaryTags.length + selectedAllergens.length + (searchTerm ? 1 : 0)}
-                  </span>
-                )}
-              </button>
+          {/* Description */}
+          {menu.description && <p className="header-description">{menu.description}</p>}
+
+          {/* Search with attached filter button */}
+          <div className="search-input-wrapper">
+            <MagnifyingGlassIcon className="h-4 w-4 text-white opacity-70 mr-1" />
+            <input
+              type="text"
+              placeholder="Search menu items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <button 
+              onClick={() => setIsFilterVisible(!isFilterVisible)} 
+              className={`filter-button ${isFilterVisible ? 'active' : ''}`}
+              aria-label="Toggle filters"
+            >
+              <FunnelIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation - redesigned to match screenshot */}
+      {filteredSections.length > 0 && (
+        <div className="menu-nav-container">
+            <div id="tabsScroller" className="menu-nav-scroll">
+                <div className="menu-nav-list">
+                  {filteredSections.map((section, index) => (
+                    <button
+                      key={section.id}
+                      data-section-id={section.id}
+                      onClick={() => handleSectionClick(section.id, index)}
+                      className={`menu-nav-item ${activeSection === section.id ? 'active' : ''}`}
+                    >
+                      {section.name}
+                    </button>
+                  ))}
+                </div>
             </div>
+        </div>
+      )}
 
-            {/* Filter Options */}
-            {isFilterVisible && (
-              <div className="zvezda-filters-panel">
-                <div>
-                  <h3 className="zvezda-filter-group-title">Dietary Preferences</h3>
-                  <div className="zvezda-filter-options">
-                    {availableDietaryTags.map(tag => (
-                      <button
-                        key={tag.id}
-                        onClick={() => toggleDietaryTag(tag.id)}
-                        className={`zvezda-filter-option zvezda-dietary-option ${
-                          selectedDietaryTags.includes(tag.id) ? 'active' : ''
-                        }`}
-                      >
-                        {tag.icon && <span className="mr-1">{tag.icon}</span>}
-                        {tag.name}
-                      </button>
-                    ))}
-                    {availableDietaryTags.length === 0 && (
-                      <span className="text-white text-opacity-50 text-xs">No dietary options available</span>
-                    )}
-                  </div>
+      {/* Content Area */}
+      <main className="menu-content-container">
+        {/* Filter Display Section (Example) */}
+        {/* You would integrate the actual filter UI logic here */}
+        {isFilterVisible && (
+          <div className="mb-4 p-4 border rounded-lg bg-gray-50">
+            <h3 className="font-semibold mb-2">Filters</h3>
+             <div>
+                <h4 className="text-sm font-medium mb-1">Dietary Tags</h4>
+                <div className="flex flex-wrap gap-2">
+                  {availableDietaryTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleDietaryTag(tag.id)}
+                      className={`tag-badge ${selectedDietaryTags.includes(tag.id) ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-700'}`}
+                    >
+                      {tag.name}
+                    </button>
+                  ))}
                 </div>
-                
-                <div>
-                  <h3 className="zvezda-filter-group-title">Exclude Allergens</h3>
-                  <div className="zvezda-filter-options">
-                    {availableAllergens.map(allergen => (
-                      <button
-                        key={allergen.id}
-                        onClick={() => toggleAllergen(allergen.id)}
-                        className={`zvezda-filter-option zvezda-allergen-option ${
-                          selectedAllergens.includes(allergen.id) ? 'active' : ''
-                        }`}
-                      >
-                        {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
-                        {allergen.name}
-                      </button>
-                    ))}
-                    {availableAllergens.length === 0 && (
-                      <span className="text-white text-opacity-50 text-xs">No allergen options available</span>
-                    )}
-                  </div>
-                </div>
+             </div>
+             <div className="mt-2">
+                 <h4 className="text-sm font-medium mb-1">Exclude Allergens</h4>
+                 <div className="flex flex-wrap gap-2">
+                   {availableAllergens.map(allergen => (
+                     <button
+                       key={allergen.id}
+                       onClick={() => toggleAllergen(allergen.id)}
+                       className={`tag-badge allergen ${selectedAllergens.includes(allergen.id) ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700'}`}
+                     >
+                       {allergen.name}
+                     </button>
+                   ))}
+                 </div>
+              </div>
+            {hasActiveFilters && (
+                <button onClick={clearFilters} className="mt-3 text-sm text-blue-600 hover:underline">Clear Filters</button>
+            )}
+          </div>
+        )}
 
-                {hasActiveFilters && (
-                  <button 
-                    onClick={clearFilters}
-                    className="zvezda-clear-filters"
+        {filteredSections.length > 0 ? (
+          filteredSections.map((section) => (
+            <section
+              key={section.id}
+              id={`section-${section.id}`}
+              ref={(el) => (sectionRefs.current[section.id] = el)}
+              className="mb-6" // Add margin between sections
+            >
+              <h2 className="menu-section-title">{section.name}</h2>
+              <div className="space-y-4"> {/* Use space-y for spacing instead of grid */}
+                {section.items.map((item) => (
+                  <div key={item.id} className="menu-item-card" onClick={() => openItemModal(item)}>
+                     {/* Image or Icon */}
+                     <div className="item-image-container">
+                       {item.imageUrl ? (
+                         <img src={item.imageUrl} alt={item.name} className="item-image" />
+                       ) : item.icon ? (
+                         <div className="item-icon">
+                            <i className={`fa ${item.icon}`}></i> {/* Render FontAwesome icon */}
+                         </div>
+                       ) : (
+                          <div className="item-icon bg-gray-200"> {/* Placeholder */}
+                             <i className="fa fa-utensils text-gray-500"></i>
+                          </div>
+                       )}
+                     </div>
+
+                     {/* Content: Name, Desc, Price, Tags */}
+                     <div className="item-content">
+                         {/* Top Part: Name & Description */}
+                         <div className="item-details">
+                             <h3 className="item-name">{item.name}</h3>
+                             {item.description && <p className="item-description">{item.description}</p>}
+                         </div>
+
+                         {/* Bottom Part: Price & Tags */}
+                         <div className="item-footer">
+                           {item.price && (
+                             <span className="item-price">
+                               {formatPrice(item.price, menu || undefined)}
+                             </span>
+                           )}
+                           <div className="item-tags">
+                             {item.dietaryTags?.map(tag => (
+                               <span key={tag.id} className="tag-badge">{tag.name}</span>
+                             ))}
+                             {item.allergens?.map(allergen => (
+                               <span key={allergen.id} className="tag-badge allergen">{allergen.name}</span>
+                             ))}
+                           </div>
+                         </div>
+                     </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))
+        ) : (
+          <div className="text-center py-10 text-gray-500">
+            <p>No menu items match your current search or filter criteria.</p>
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="mt-4 text-blue-600 hover:underline">
+                Clear Filters
+              </button>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Modal */}
+      {selectedItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div ref={modalRef} className="modal-content max-w-md w-full max-h-[90vh] overflow-y-auto relative">
+            {/* Media Section */}
+            {(selectedItem.imageUrl || selectedItem.videoUrl) && (
+              <div className="modal-media-container">
+                {showVideo && selectedItem.videoUrl && !videoError ? (
+                  (() => {
+                    const videoInfo = getVideoEmbedUrl(selectedItem.videoUrl);
+                    if (videoInfo?.type === 'youtube' || videoInfo?.type === 'vimeo') {
+                      return (
+                        <iframe
+                          src={videoInfo.embedUrl}
+                          title={selectedItem.name}
+                          className="modal-media-content"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      );
+                    } else if (videoInfo?.type === 'direct') {
+                      return (
+                        <video
+                          src={videoInfo.embedUrl}
+                          controls
+                          className="modal-media-content"
+                          onError={() => {
+                            console.error("Video failed to load:", videoInfo.embedUrl);
+                            setVideoError(true);
+                            setShowVideo(false);
+                          }}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      );
+                    } else {
+                      setVideoError(true);
+                      setShowVideo(false);
+                      return null;
+                    }
+                  })()
+                ) : selectedItem.imageUrl ? (
+                  <img
+                    src={selectedItem.imageUrl}
+                    alt={selectedItem.name}
+                    className="modal-media-content"
+                    onError={() => {
+                      // Hide image container if image fails to load
+                      const container = document.querySelector('.modal-media-container');
+                      if (container) container.classList.add('hidden');
+                    }}
+                  />
+                ) : null}
+
+                {/* Media Toggle Button */}
+                {selectedItem.imageUrl && selectedItem.videoUrl && !videoError && (
+                  <button
+                    onClick={() => setShowVideo(!showVideo)}
+                    className="modal-switch-button"
                   >
-                    Clear All Filters
+                    {showVideo ? (
+                      <>
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4V5h12v10z"></path>
+                        </svg>
+                        <span>View Photo</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"></path>
+                        </svg>
+                        <span>Play Video</span>
+                      </>
+                    )}
                   </button>
                 )}
+
+                {/* Close Button */}
+                <button
+                  onClick={() => setSelectedItem(null)}
+                  className="modal-close-button"
+                  aria-label="Close modal"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
               </div>
             )}
-          </div>
 
-          {/* Menu Navigation */}
-          <MenuNavigation
-            sections={filteredSections}
-            activeSection={activeSection}
-            onSectionClick={handleSectionClick}
-          />
+            {/* Item Details */}
+            <h2 className="modal-item-name">{selectedItem.name}</h2>
+            
+            {selectedItem.price && (
+              <div className="modal-item-price">
+                {formatPrice(selectedItem.price, menu || undefined)}
+              </div>
+            )}
+            
+            {selectedItem.description && (
+              <p className="modal-item-description">{selectedItem.description}</p>
+            )}
 
-          {/* Zvezda Menu Content */}
-          <main className="zvezda-menu-container mt-6">
-            {filteredSections.length > 0 ? (
-              filteredSections.map((section) => (
-                <div 
-                  key={section.id} 
-                  ref={(el) => { sectionRefs.current[section.id] = el; }}
-                  className="mb-12"
-                >
-                  <h2 
-                    id={`section-${section.id}`} 
-                    className="zvezda-section-title"
-                  >
-                    {section.name}
-                  </h2>
-                  <div className="zvezda-menu-section">
-                    {section.items.map((item) => (
-                      <div 
-                        key={item.id} 
-                        className="zvezda-menu-item cursor-pointer"
-                        onClick={() => openItemModal(item)}
-                      >
-                        {item.imageUrl && (
-                          <img 
-                            src={item.imageUrl} 
-                            alt={item.name} 
-                            className="zvezda-item-image"
-                            onError={(e) => {
-                              const imgElement = e.currentTarget;
-                              imgElement.src = 'https://via.placeholder.com/90x90?text=No+Image';
-                            }}
-                          />
-                        )}
-                        <div className="zvezda-item-content">
-                          <div className="zvezda-item-header">
-                            <h3 className="zvezda-item-name flex items-center gap-2">
-                              {item.name}
-                              {item.videoUrl && (
-                                <span className="text-amber-500 flex items-center gap-1" title="Watch video">
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                  </svg>
-                                </span>
-                              )}
-                            </h3>
-                            <div className="zvezda-item-price">${formatPrice(item.price)}</div>
-                          </div>
-                          {item.description && (
-                            <p className="zvezda-item-description">{item.description}</p>
-                          )}
-
-                          {/* Dietary Tags & Allergens */}
-                          <div className="zvezda-item-tags">
-                            {item.dietaryTags && item.dietaryTags.length > 0 && 
-                              item.dietaryTags.map(tag => (
-                                <span key={tag.id} className="zvezda-tag zvezda-dietary-tag">
-                                  {tag.icon && <span className="mr-1">{tag.icon}</span>}
-                                  {tag.name}
-                                </span>
-                              ))
-                            }
-                            {item.allergens && item.allergens.length > 0 && 
-                              item.allergens.map(allergen => (
-                                <span key={allergen.id} className="zvezda-tag zvezda-allergen-tag">
-                                  {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
-                                  {allergen.name}
-                                </span>
-                              ))
-                            }
-                          </div>
-                        </div>
-                      </div>
+            {/* Tags */}
+            <div className="space-y-4">
+              {selectedItem.dietaryTags && selectedItem.dietaryTags.length > 0 && (
+                <div>
+                  <h4 className="modal-section-title">Dietary Info</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedItem.dietaryTags.map(tag => (
+                      <span key={tag.id} className="tag-badge">{tag.name}</span>
                     ))}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-10 bg-gray-50 rounded-lg mt-4">
-                <p className="text-gray-500">No items found with the current filters</p>
-              </div>
-            )}
-          </main>
-        </>
-      )}
-      
-      {/* Item Modal/Popup - Improved implementation */}
-      {selectedItem && (
-        <div 
-          className="fixed inset-0 z-50 overflow-hidden bg-black bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm"
-          onClick={() => setSelectedItem(null)}
-        >
-          {/* Close button - Moved outside the modal content */}
-          <button 
-            className="fixed top-4 right-4 z-[60] bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75 transition-all"
-            onClick={() => setSelectedItem(null)}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-
-          <div 
-            ref={modalRef}
-            className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl transform transition-all"
-            onClick={(e) => e.stopPropagation()}
-            style={{animation: 'modalFadeIn 0.2s ease-out'}}
-          >
-            <div className="flex flex-col">
-              {/* Media Section - Only show if there's media content */}
-              {(selectedItem.imageUrl || selectedItem.videoUrl) && (
-                <div className="relative aspect-video bg-gray-900">
-                  {showVideo && selectedItem.videoUrl ? (
-                    <div className="w-full h-full">
-                      {(() => {
-                        const videoInfo = getVideoEmbedUrl(selectedItem.videoUrl);
-                        if (videoInfo && (videoInfo.type === 'youtube' || videoInfo.type === 'vimeo')) {
-                          return (
-                            <iframe
-                              src={videoInfo.embedUrl}
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                              className="w-full h-full"
-                            ></iframe>
-                          );
-                        } else {
-                          return (
-                            <video 
-                              className="w-full h-full" 
-                              controls 
-                              playsInline
-                              autoPlay
-                            >
-                              <source src={selectedItem.videoUrl} type="video/mp4" />
-                              <source src={selectedItem.videoUrl} type="video/webm" />
-                              Your browser does not support the video tag.
-                            </video>
-                          );
-                        }
-                      })()}
-                    </div>
-                  ) : selectedItem.imageUrl && (
-                    <img 
-                      src={selectedItem.imageUrl} 
-                      alt={selectedItem.name}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                  
-                  {/* Media toggle button - Only show if both image and video are available */}
-                  {selectedItem.videoUrl && selectedItem.imageUrl && (
-                    <button 
-                      className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-opacity-90 transition-all flex items-center gap-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowVideo(!showVideo);
-                      }}
-                    >
-                      {showVideo ? (
-                        <>
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                          </svg>
-                          <span>View Photo</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          <span>Watch Video</span>
-                        </>
-                      )}
-                    </button>
-                  )}
+              )}
+              
+              {selectedItem.allergens && selectedItem.allergens.length > 0 && (
+                <div>
+                  <h4 className="modal-section-title">Allergens</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedItem.allergens.map(allergen => (
+                      <span key={allergen.id} className="tag-badge allergen">{allergen.name}</span>
+                    ))}
+                  </div>
                 </div>
               )}
-
-              {/* Content Section */}
-              <div className="p-6 space-y-6">
-                <div className="border-b border-gray-200 pb-6">
-                  <div className="flex justify-between items-start mb-2">
-                    <h2 className="text-2xl font-bold text-gray-900">{selectedItem.name}</h2>
-                    <span className="text-2xl font-bold text-amber-500">
-                      ${formatPrice(selectedItem.price)}
-                    </span>
-                  </div>
-                  {selectedItem.description && (
-                    <p className="text-gray-600 text-base">{selectedItem.description}</p>
-                  )}
-                </div>
-
-                {/* Dietary Information */}
-                {((selectedItem.dietaryTags && selectedItem.dietaryTags.length > 0) || 
-                  (selectedItem.allergens && selectedItem.allergens.length > 0)) && (
-                  <div className="space-y-4">
-                    {selectedItem.dietaryTags && selectedItem.dietaryTags.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Dietary Options</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedItem.dietaryTags.map(tag => (
-                            <span 
-                              key={tag.id}
-                              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
-                            >
-                              {tag.icon && <span className="mr-1">{tag.icon}</span>}
-                              {tag.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {selectedItem.allergens && selectedItem.allergens.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Contains Allergens</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedItem.allergens.map(allergen => (
-                            <span 
-                              key={allergen.id}
-                              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800"
-                            >
-                              {allergen.icon && <span className="mr-1">{allergen.icon}</span>}
-                              {allergen.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
       )}
-      
-      {/* Footer */}
-      <footer className="py-6 border-t border-gray-200 mt-20">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
-          <p>© {new Date().getFullYear()} {menu.name}. All rights reserved.</p>
-        </div>
-      </footer>
 
       {/* Back to Top Button */}
       <button
-        className="back-to-top"
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className="back-to-top fixed bottom-4 right-4 bg-orange-500 text-white p-3 rounded-full shadow-lg hover:bg-orange-600 transition-all duration-300 opacity-0 pointer-events-none"
+        aria-label="Back to top"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-        </svg>
+         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
       </button>
-    </div>
+      <style>{`
+        .back-to-top.visible {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      `}</style>
+
+    </div> // Close main div
   );
 };
 

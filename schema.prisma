@@ -91,6 +91,7 @@ model Menu {
   currencySymbol String     @default("$")
   currencyPosition String   @default("prefix")
   template    String        @default("default")  // Options: default, no-images
+  logoUrl     String?
   user        User          @relation(fields: [userId], references: [id])
   sections    MenuSection[]
 }

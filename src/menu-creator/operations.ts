@@ -20,6 +20,7 @@ import type {
 } from './types';
 import { nanoid } from 'nanoid';
 import { getMenuItemImageUploadURL, getMenuItemImageDownloadURL, deleteMenuItemImage } from './menuItemImageUtils';
+import { generateS3UploadUrl } from '../server/s3.js';
 
 // Queries
 export const getMenusByUser: GetMenusByUser<void, Menu[]> = async (args, context) => {
@@ -43,6 +44,7 @@ export const getMenusByUser: GetMenusByUser<void, Menu[]> = async (args, context
       currencyCode: true,
       currencySymbol: true,
       currencyPosition: true,
+      logoUrl: true,
       sections: true
     }
   });
@@ -73,6 +75,7 @@ export const getMenuById: GetMenuById<{ menuId: string; template?: string }, Men
       currencyCode: true,
       currencySymbol: true,
       currencyPosition: true,
+      logoUrl: true,
       sections: {
         orderBy: { position: 'asc' },
         select: {
@@ -136,6 +139,7 @@ export const getPublicMenu: GetPublicMenu<{ publicUrl: string; template?: string
       currencyCode: true,
       currencySymbol: true,
       currencyPosition: true,
+      logoUrl: true,
       sections: {
         orderBy: { position: 'asc' },
         select: {
@@ -234,6 +238,7 @@ export const updateMenu: UpdateMenu<{
   currencySymbol?: string;
   currencyPosition?: string;
   template?: string;
+  logoUrl?: string;
 }, Menu> = async ({ 
   menuId, 
   name, 
@@ -242,7 +247,8 @@ export const updateMenu: UpdateMenu<{
   currencyCode,
   currencySymbol,
   currencyPosition,
-  template  // We'll receive this but not use it until migration is run
+  template,  // We'll receive this but not use it until migration is run
+  logoUrl
 }, context) => {
   if (!context.user) {
     throw new HttpError(401, 'You must be logged in to update a menu');
@@ -288,7 +294,8 @@ export const updateMenu: UpdateMenu<{
       publicUrl,
       ...(currencyCode && { currencyCode }),
       ...(currencySymbol && { currencySymbol }),
-      ...(currencyPosition && { currencyPosition })
+      ...(currencyPosition && { currencyPosition }),
+      ...(logoUrl !== undefined && { logoUrl })
       // template field omitted until migration is run
     },
     select: {
@@ -302,7 +309,8 @@ export const updateMenu: UpdateMenu<{
       userId: true,
       currencyCode: true,
       currencySymbol: true,
-      currencyPosition: true
+      currencyPosition: true,
+      logoUrl: true
     }
   });
 
@@ -943,7 +951,6 @@ export const importMenuFromCsv = async ({ csvData }: { csvData: CsvMenuItem[] },
     const menu = await context.entities.Menu.create({
       data: {
         name: menuName,
-        description: 'Imported from CSV',
         publicUrl,
         currencyCode: 'USD',
         currencySymbol: '$',
@@ -1111,5 +1118,49 @@ export const importMenuFromCsv = async ({ csvData }: { csvData: CsvMenuItem[] },
     console.error('Error importing menu from CSV:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new HttpError(500, `Failed to import menu: ${errorMessage}`);
+  }
+};
+
+export type GetMenuLogoUploadUrl<Args, Result> = (args: Args, context: any) => Promise<Result>;
+
+export const getMenuLogoUploadUrl: GetMenuLogoUploadUrl<{ menuId: string; fileName: string; fileType: string }, { uploadUrl: string; publicUrl: string }> = async ({ menuId, fileName, fileType }, context) => {
+  if (!context.user) {
+    throw new HttpError(401, 'You must be logged in to upload a logo');
+  }
+
+  // Check if user owns the menu
+  const menu = await context.entities.Menu.findUnique({
+    where: { id: menuId },
+    select: {
+      id: true,
+      userId: true
+    }
+  });
+
+  if (!menu) {
+    throw new HttpError(404, 'Menu not found');
+  }
+
+  if (menu.userId !== context.user.id) {
+    throw new HttpError(403, 'You do not have permission to upload a logo for this menu');
+  }
+
+  try {
+    // Generate a unique file name to avoid collisions
+    const uniqueId = Math.random().toString(36).substring(2, 15);
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const key = `menu-logos/${menu.id}/${uniqueId}-${sanitizedFileName}`;
+
+    // Generate a pre-signed URL for uploading the logo
+    const uploadUrl = await generateS3UploadUrl(key, fileType);
+    const publicUrl = `https://${process.env.AWS_S3_FILES_BUCKET}.s3.amazonaws.com/${key}`;
+
+    return { uploadUrl, publicUrl };
+  } catch (error) {
+    console.error('Error generating upload URL:', error);
+    if (error instanceof Error) {
+      throw new HttpError(500, `Failed to generate upload URL: ${error.message}`);
+    }
+    throw new HttpError(500, 'Failed to generate upload URL due to an unknown error');
   }
 }; 
