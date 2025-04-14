@@ -10,6 +10,7 @@
     "@hello-pangea/dnd": "^18.0.1",
     "@heroicons/react": "^2.2.0",
     "@lemonsqueezy/lemonsqueezy.js": "^3.2.0",
+    "@material-design-icons/font": "^0.14.15",
     "@tailwindcss/forms": "^0.5.3",
     "@tailwindcss/typography": "^0.5.7",
     "@types/crypto-js": "^4.2.2",

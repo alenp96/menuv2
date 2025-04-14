@@ -160,12 +160,12 @@ const PublicMenuPage = () => {
       document.body.style.overflow = 'hidden';
       
       // Add event listener to close modal when clicking outside
-      const handleClickOutside = (event: MouseEvent) => {
-        if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-          setSelectedItem(null);
-        }
-      };
-      
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        setSelectedItem(null);
+      }
+    };
+
       document.addEventListener('mousedown', handleClickOutside);
       
       // Add escape key listener
@@ -176,12 +176,12 @@ const PublicMenuPage = () => {
       };
       
       document.addEventListener('keydown', handleEscKey);
-      
-      return () => {
-        document.body.style.overflow = '';
+
+    return () => {
+      document.body.style.overflow = '';
         document.removeEventListener('mousedown', handleClickOutside);
         document.removeEventListener('keydown', handleEscKey);
-      };
+    };
     } else {
       // Reset body overflow when modal is closed
       document.body.style.overflow = '';
@@ -296,8 +296,8 @@ const PublicMenuPage = () => {
           // Find index of this section in filteredSections
           const index = filteredSections.findIndex(s => s.id === currentSectionId);
           if (index !== -1) {
-            setActiveSectionIndex(index);
-            
+    setActiveSectionIndex(index);
+    
             // Scroll the navigation to make the active tab visible
             setTimeout(() => {
               scrollTabIntoView(currentSectionId!);
@@ -389,8 +389,8 @@ const PublicMenuPage = () => {
     if (filteredSections.length > 0) {
       // If current active section is not in filtered sections, update it
       if (!activeSection || !filteredSections.some(s => s.id === activeSection)) {
-        setActiveSection(filteredSections[0].id);
-        setActiveSectionIndex(0);
+      setActiveSection(filteredSections[0].id);
+      setActiveSectionIndex(0);
       }
     } else {
       // If no sections to display, set active section to null
@@ -401,7 +401,7 @@ const PublicMenuPage = () => {
   // Add scroll event listener for back to top button with improved performance
   useEffect(() => {
     let backToTopVisible = false;
-    
+
     const handleScroll = () => {
       requestAnimationFrame(() => {
         const shouldBeVisible = window.scrollY > 300;
@@ -652,7 +652,7 @@ const PublicMenuPage = () => {
         }
         @media (min-width: 768px) {
           .header-description {
-             max-width: 600px;
+          max-width: 600px;
              font-size: 1rem;
           }
         }
@@ -877,7 +877,7 @@ const PublicMenuPage = () => {
         .modal-content {
            background: white;
            border-radius: 1rem;
-           padding: 1.5rem;
+          padding: 1.5rem;
            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
         }
         /* Modal media container with 3:4 aspect ratio */
@@ -973,7 +973,7 @@ const PublicMenuPage = () => {
           margin-bottom: 0.5rem;
         }
       `}</style>
-
+      
       {/* Header with blurred background elements */}
       <header className="public-menu-header">
         {/* Decorative blurred elements */}
@@ -994,18 +994,18 @@ const PublicMenuPage = () => {
               )}
               <h1 className="header-title">{menu.name}</h1>
           </div>
-
+          
           {/* Description */}
           {menu.description && <p className="header-description">{menu.description}</p>}
 
           {/* Search with attached filter button */}
           <div className="search-input-wrapper">
             <MagnifyingGlassIcon className="h-4 w-4 text-white opacity-70 mr-1" />
-            <input
-              type="text"
-              placeholder="Search menu items..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              <input
+                type="text"
+                placeholder="Search menu items..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
             />
             <button 
@@ -1015,8 +1015,8 @@ const PublicMenuPage = () => {
             >
               <FunnelIcon className="h-4 w-4" />
             </button>
-          </div>
-        </div>
+              </div>
+            </div>
       </header>
 
       {/* Navigation - redesigned to match screenshot */}
@@ -1025,60 +1025,60 @@ const PublicMenuPage = () => {
             <div id="tabsScroller" className="menu-nav-scroll">
                 <div className="menu-nav-list">
                   {filteredSections.map((section, index) => (
-                    <button
+            <button 
                       key={section.id}
                       data-section-id={section.id}
                       onClick={() => handleSectionClick(section.id, index)}
                       className={`menu-nav-item ${activeSection === section.id ? 'active' : ''}`}
                     >
                       {section.name}
-                    </button>
+            </button>
                   ))}
-                </div>
+          </div>
             </div>
         </div>
       )}
-
+          
       {/* Content Area */}
       <main className="menu-content-container">
         {/* Filter Display Section (Example) */}
         {/* You would integrate the actual filter UI logic here */}
-        {isFilterVisible && (
+          {isFilterVisible && (
           <div className="mb-4 p-4 border rounded-lg bg-gray-50">
             <h3 className="font-semibold mb-2">Filters</h3>
-             <div>
+                <div>
                 <h4 className="text-sm font-medium mb-1">Dietary Tags</h4>
                 <div className="flex flex-wrap gap-2">
-                  {availableDietaryTags.map(tag => (
-                    <button
-                      key={tag.id}
-                      onClick={() => toggleDietaryTag(tag.id)}
+                    {availableDietaryTags.map(tag => (
+                      <button
+                        key={tag.id}
+                        onClick={() => toggleDietaryTag(tag.id)}
                       className={`tag-badge ${selectedDietaryTags.includes(tag.id) ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-700'}`}
                     >
-                      {tag.name}
-                    </button>
-                  ))}
+                        {tag.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-             </div>
              <div className="mt-2">
                  <h4 className="text-sm font-medium mb-1">Exclude Allergens</h4>
                  <div className="flex flex-wrap gap-2">
-                   {availableAllergens.map(allergen => (
-                     <button
-                       key={allergen.id}
-                       onClick={() => toggleAllergen(allergen.id)}
+                    {availableAllergens.map(allergen => (
+                      <button
+                        key={allergen.id}
+                        onClick={() => toggleAllergen(allergen.id)}
                        className={`tag-badge allergen ${selectedAllergens.includes(allergen.id) ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700'}`}
                      >
-                       {allergen.name}
-                     </button>
-                   ))}
-                 </div>
+                        {allergen.name}
+                      </button>
+                    ))}
+                </div>
               </div>
-            {hasActiveFilters && (
+              {hasActiveFilters && (
                 <button onClick={clearFilters} className="mt-3 text-sm text-blue-600 hover:underline">Clear Filters</button>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
 
         {filteredSections.length > 0 ? (
           filteredSections.map((section) => (
@@ -1099,12 +1099,12 @@ const PublicMenuPage = () => {
                        ) : item.icon ? (
                          <div className="item-icon">
                             <i className={`fa ${item.icon}`}></i> {/* Render FontAwesome icon */}
-                         </div>
+      </div>
                        ) : (
                           <div className="item-icon bg-gray-200"> {/* Placeholder */}
                              <i className="fa fa-utensils text-gray-500"></i>
-                          </div>
-                       )}
+          </div>
+        )}
                      </div>
 
                      {/* Content: Name, Desc, Price, Tags */}
@@ -1113,7 +1113,7 @@ const PublicMenuPage = () => {
                          <div className="item-details">
                              <h3 className="item-name">{item.name}</h3>
                              {item.description && <p className="item-description">{item.description}</p>}
-                         </div>
+                  </div>
 
                          {/* Bottom Part: Price & Tags */}
                          <div className="item-footer">
@@ -1129,9 +1129,9 @@ const PublicMenuPage = () => {
                              {item.allergens?.map(allergen => (
                                <span key={allergen.id} className="tag-badge allergen">{allergen.name}</span>
                              ))}
-                           </div>
-                         </div>
-                     </div>
+                            </div>
+                            </div>
+                            </div>
                   </div>
                 ))}
               </div>
@@ -1144,8 +1144,8 @@ const PublicMenuPage = () => {
               <button onClick={clearFilters} className="mt-4 text-blue-600 hover:underline">
                 Clear Filters
               </button>
-            )}
-          </div>
+                )}
+              </div>
         )}
       </main>
 
@@ -1160,21 +1160,21 @@ const PublicMenuPage = () => {
                   (() => {
                     const videoInfo = getVideoEmbedUrl(selectedItem.videoUrl);
                     if (videoInfo?.type === 'youtube' || videoInfo?.type === 'vimeo') {
-                      return (
-                        <iframe
-                          src={videoInfo.embedUrl}
+                    return (
+                          <iframe
+                            src={videoInfo.embedUrl}
                           title={selectedItem.name}
                           className="modal-media-content"
                           frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        ></iframe>
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
                       );
                     } else if (videoInfo?.type === 'direct') {
-                      return (
-                        <video
+                    return (
+                        <video 
                           src={videoInfo.embedUrl}
-                          controls
+                          controls 
                           className="modal-media-content"
                           onError={() => {
                             console.error("Video failed to load:", videoInfo.embedUrl);
@@ -1191,10 +1191,10 @@ const PublicMenuPage = () => {
                       return null;
                     }
                   })()
-                ) : selectedItem.imageUrl ? (
-                  <img
-                    src={selectedItem.imageUrl}
-                    alt={selectedItem.name}
+            ) : selectedItem.imageUrl ? (
+                <img 
+                  src={selectedItem.imageUrl} 
+                  alt={selectedItem.name} 
                     className="modal-media-content"
                     onError={() => {
                       // Hide image container if image fails to load
@@ -1222,7 +1222,7 @@ const PublicMenuPage = () => {
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                           <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
                           <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"></path>
-                        </svg>
+                  </svg>
                         <span>Play Video</span>
                       </>
                     )}
@@ -1241,7 +1241,7 @@ const PublicMenuPage = () => {
                 </button>
               </div>
             )}
-
+            
             {/* Item Details */}
             <h2 className="modal-item-name">{selectedItem.name}</h2>
             
@@ -1250,34 +1250,34 @@ const PublicMenuPage = () => {
                 {formatPrice(selectedItem.price, menu || undefined)}
               </div>
             )}
-            
-            {selectedItem.description && (
+              
+              {selectedItem.description && (
               <p className="modal-item-description">{selectedItem.description}</p>
-            )}
-
-            {/* Tags */}
-            <div className="space-y-4">
-              {selectedItem.dietaryTags && selectedItem.dietaryTags.length > 0 && (
-                <div>
-                  <h4 className="modal-section-title">Dietary Info</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedItem.dietaryTags.map(tag => (
-                      <span key={tag.id} className="tag-badge">{tag.name}</span>
-                    ))}
-                  </div>
-                </div>
               )}
               
-              {selectedItem.allergens && selectedItem.allergens.length > 0 && (
-                <div>
-                  <h4 className="modal-section-title">Allergens</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedItem.allergens.map(allergen => (
-                      <span key={allergen.id} className="tag-badge allergen">{allergen.name}</span>
-                    ))}
+            {/* Tags */}
+              <div className="space-y-4">
+                {selectedItem.dietaryTags && selectedItem.dietaryTags.length > 0 && (
+                  <div>
+                  <h4 className="modal-section-title">Dietary Info</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedItem.dietaryTags.map(tag => (
+                      <span key={tag.id} className="tag-badge">{tag.name}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+                
+                {selectedItem.allergens && selectedItem.allergens.length > 0 && (
+                  <div>
+                  <h4 className="modal-section-title">Allergens</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedItem.allergens.map(allergen => (
+                      <span key={allergen.id} className="tag-badge allergen">{allergen.name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -1302,4 +1302,4 @@ const PublicMenuPage = () => {
   );
 };
 
-export default PublicMenuPage;
+export default PublicMenuPage; 

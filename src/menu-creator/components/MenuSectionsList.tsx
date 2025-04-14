@@ -18,12 +18,17 @@ const MenuSectionsList: React.FC<MenuSectionsListProps> = ({ menu, onMenuUpdated
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
 
+    // Reorder the sections based on the drag result
+    const sections = Array.from(menu.sections);
+    const [reorderedSection] = sections.splice(result.source.index, 1);
+    sections.splice(result.destination.index, 0, reorderedSection);
+
+    const orderedSectionIds = sections.map(section => section.id);
+
     try {
       await reorderMenuSectionsFn({
         menuId: menu.id,
-        orderedSectionIds: menu.sections.map((section, index) => 
-          index === result.destination!.index ? result.draggableId : section.id
-        )
+        orderedSectionIds: orderedSectionIds
       });
       onMenuUpdated();
     } catch (error) {

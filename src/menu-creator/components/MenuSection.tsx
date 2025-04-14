@@ -58,12 +58,17 @@ const MenuSection: React.FC<MenuSectionProps> = ({
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
 
+    // Reorder the items based on the drag result
+    const items = Array.from(section.items);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    const orderedItemIds = items.map(item => item.id);
+
     try {
       await reorderMenuItemsFn({
         sectionId: section.id,
-        orderedItemIds: section.items.map((item, index) => 
-          index === result.destination!.index ? result.draggableId : item.id
-        )
+        orderedItemIds: orderedItemIds
       });
       onMenuUpdated?.();
     } catch (error) {
