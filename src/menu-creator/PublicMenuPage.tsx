@@ -784,15 +784,33 @@ const PublicMenuPage = () => {
           display: flex;
           gap: 0.75rem;
           margin-bottom: 1rem;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid #e5e7eb;
+          padding: 0.75rem;
+          border-radius: 0.5rem;
+          background-color: white;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: 1px solid rgba(0, 0, 0, 0.05);
           align-items: flex-start;
         }
+        .menu-item-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+        }
         .menu-item-card:last-child {
-          border-bottom: none;
           margin-bottom: 0;
         }
+        .menu-item-card.has-video {
+          border-left: 3px solid #ef4444;
+          box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1);
+        }
+        .menu-item-card.has-video:hover {
+          box-shadow: 0 4px 8px rgba(239, 68, 68, 0.15);
+        }
         .item-image-container {
+          position: relative;
+          width: 50px;
+          height: 50px;
           flex-shrink: 0;
         }
         .item-image {
@@ -801,6 +819,25 @@ const PublicMenuPage = () => {
           border-radius: 50%;
           object-fit: cover;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .item-video-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: rgba(0, 0, 0, 0.4);
+          color: white;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 2;
+        }
+        .item-video-overlay i {
+          font-size: 1.125rem;
+          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
         }
         .item-icon {
            width: 50px;
@@ -829,6 +866,29 @@ const PublicMenuPage = () => {
           color: #111827;
           margin-bottom: 0.125rem;
           line-height: 1.3;
+        }
+        .item-name-container {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+        }
+        .video-indicator {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background-color: #ef4444;
+          color: white;
+          font-size: 0.5rem;
+          width: 1rem;
+          height: 1rem;
+          border-radius: 50%;
+          filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2));
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0% { opacity: 0.8; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.1); }
+          100% { opacity: 0.8; transform: scale(1); }
         }
         .item-description {
           font-size: 0.75rem;
@@ -916,9 +976,18 @@ const PublicMenuPage = () => {
           backdrop-filter: blur(4px);
           transition: all 0.2s ease;
           z-index: 10;
+          border: 1px solid rgba(255, 255, 255, 0.15);
         }
         .modal-switch-button:hover {
           background-color: rgba(0, 0, 0, 0.75);
+          transform: scale(1.05);
+        }
+        .modal-switch-button.play-video {
+          background-color: rgba(239, 68, 68, 0.85);
+          box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+        }
+        .modal-switch-button.play-video:hover {
+          background-color: rgba(239, 68, 68, 0.95);
         }
         .modal-close-button {
           position: absolute;
@@ -1091,29 +1160,61 @@ const PublicMenuPage = () => {
               <h2 className="menu-section-title">{section.name}</h2>
               <div className="space-y-4"> {/* Use space-y for spacing instead of grid */}
                 {section.items.map((item) => (
-                  <div key={item.id} className="menu-item-card" onClick={() => openItemModal(item)}>
+                  <div 
+                    key={item.id} 
+                    className={`menu-item-card ${item.videoUrl ? 'has-video' : ''}`} 
+                    onClick={() => openItemModal(item)}
+                  >
                      {/* Image or Icon */}
                      <div className="item-image-container">
                        {item.imageUrl ? (
-                         <img src={item.imageUrl} alt={item.name} className="item-image" />
+                         <>
+                           <img src={item.imageUrl} alt={item.name} className="item-image" />
+                           {item.videoUrl && (
+                             <div className="item-video-overlay">
+                               <i className="fa fa-play"></i>
+                             </div>
+                           )}
+                         </>
                        ) : item.icon ? (
-                         <div className="item-icon">
-                            <i className={`fa ${item.icon}`}></i> {/* Render FontAwesome icon */}
-      </div>
+                         <>
+                           <div className="item-icon">
+                             <i className={`fa ${item.icon}`}></i> {/* Render FontAwesome icon */}
+                           </div>
+                           {item.videoUrl && (
+                             <div className="item-video-overlay">
+                               <i className="fa fa-play"></i>
+                             </div>
+                           )}
+                         </>
                        ) : (
-                          <div className="item-icon bg-gray-200"> {/* Placeholder */}
+                         <>
+                           <div className="item-icon bg-gray-200"> {/* Placeholder */}
                              <i className="fa fa-utensils text-gray-500"></i>
-          </div>
-        )}
+                           </div>
+                           {item.videoUrl && (
+                             <div className="item-video-overlay">
+                               <i className="fa fa-play"></i>
+                             </div>
+                           )}
+                         </>
+                       )}
                      </div>
 
                      {/* Content: Name, Desc, Price, Tags */}
                      <div className="item-content">
                          {/* Top Part: Name & Description */}
                          <div className="item-details">
-                             <h3 className="item-name">{item.name}</h3>
+                             <div className="item-name-container">
+                               <h3 className="item-name">{item.name}</h3>
+                               {item.videoUrl && (
+                                 <span className="video-indicator" title="Has video">
+                                   <i className="fa fa-play"></i>
+                                 </span>
+                               )}
+                             </div>
                              {item.description && <p className="item-description">{item.description}</p>}
-                  </div>
+                         </div>
 
                          {/* Bottom Part: Price & Tags */}
                          <div className="item-footer">
@@ -1208,7 +1309,7 @@ const PublicMenuPage = () => {
                 {selectedItem.imageUrl && selectedItem.videoUrl && !videoError && (
                   <button
                     onClick={() => setShowVideo(!showVideo)}
-                    className="modal-switch-button"
+                    className={`modal-switch-button ${!showVideo ? 'play-video' : ''}`}
                   >
                     {showVideo ? (
                       <>
@@ -1220,9 +1321,8 @@ const PublicMenuPage = () => {
                     ) : (
                       <>
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
-                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"></path>
-                  </svg>
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"></path>
+                        </svg>
                         <span>Play Video</span>
                       </>
                     )}
@@ -1243,7 +1343,9 @@ const PublicMenuPage = () => {
             )}
             
             {/* Item Details */}
-            <h2 className="modal-item-name">{selectedItem.name}</h2>
+            <h2 className="modal-item-name">
+              {selectedItem.name}
+            </h2>
             
             {selectedItem.price && (
               <div className="modal-item-price">
